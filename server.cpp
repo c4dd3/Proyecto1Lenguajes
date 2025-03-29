@@ -33,8 +33,35 @@ int read_config() {
 
 // Función para manejar la conexión con un cliente
 void handle_client(int client_socket) {
-    // Código para manejar la conexión con el cliente
+    char buffer[1024];
+    int bytes_received;
+
+    // Recibir el mensaje del cliente
+    while ((bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0)) > 0) {
+        // Asegurarse de que los datos recibidos están bien formateados
+        buffer[bytes_received] = '\0';  // Aseguramos que el buffer está null-terminated
+
+        // Verificar los datos recibidos (imprimir en consola)
+        cout << "Datos recibidos del cliente: " << buffer << endl;
+
+        // Enviar una respuesta de vuelta al cliente
+        const char *response = "Mensaje procesado";
+        send(client_socket, response, strlen(response), 0);
+
+        // Si deseas hacer una pausa para procesar múltiples mensajes, puedes descomentar lo siguiente
+        // usleep(1000000); // Espera 1 segundo (opcional)
+    }
+
+    if (bytes_received == 0) {
+        cout << "Cliente desconectado" << endl;
+    } else if (bytes_received == -1) {
+        cerr << "Error al recibir los datos del cliente" << endl;
+    }
+
+    // Cerrar el socket del cliente después de terminar la comunicación
+    close(client_socket);
 }
+
 
 int main() {
     int server_fd, client_socket;
