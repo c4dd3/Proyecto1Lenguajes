@@ -3,6 +3,7 @@ yes.pub
 
 server
 client
+main
 
 *.o
 

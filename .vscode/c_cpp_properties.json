@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/gtk-3.0"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang-16",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-clang-x64",
+            "compilerArgs": [
+                "`pkg-config --cflags gtk+-3.0`"
+            ]
+        }
+    ],
+    "version": 4
+}
