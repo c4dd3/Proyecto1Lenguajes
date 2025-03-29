@@ -2,27 +2,30 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <cstring>
 #include <fstream>
 
 #define MAX_CONNECTIONS 100
 #define DEFAULT_PORT 8080
 
+using namespace std;
+
 // Función para leer el archivo de configuración y obtener el puerto
 int read_config() {
-    std::ifstream config_file("config.txt");
+    ifstream config_file("config.txt");
     int port = DEFAULT_PORT;
 
     if (config_file.is_open()) {
-        std::string line;
-        while (std::getline(config_file, line)) {
+        string line;
+        while (getline(config_file, line)) {
             if (line.find("port=") == 0) {
-                port = std::stoi(line.substr(5));
+                port = stoi(line.substr(5));
             }
         }
         config_file.close();
     } else {
-        std::cerr << "Error al leer el archivo de configuración." << std::endl;
+        cerr << "Error al leer el archivo de configuración." << endl;
     }
 
     return port;
@@ -30,7 +33,7 @@ int read_config() {
 
 // Función para manejar la conexión con un cliente
 void handle_client(int client_socket) {
-    //Codigo para manejar la conexion con el cliente
+    // Código para manejar la conexión con el cliente
 }
 
 int main() {
@@ -43,7 +46,7 @@ int main() {
 
     // Crear el socket del servidor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        std::cerr << "Error al crear el socket" << std::endl;
+        cerr << "Error al crear el socket" << endl;
         return -1;
     }
 
@@ -53,29 +56,29 @@ int main() {
 
     // Asociar el socket al puerto
     if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        std::cerr << "Error al hacer bind" << std::endl;
+        cerr << "Error al hacer bind" << endl;
         return -1;
     }
 
     // Escuchar por conexiones
     if (listen(server_fd, MAX_CONNECTIONS) < 0) {
-        std::cerr << "Error al escuchar por conexiones" << std::endl;
+        cerr << "Error al escuchar por conexiones" << endl;
         return -1;
     }
 
-    std::cout << "Servidor escuchando en el puerto " << port << std::endl;
+    cout << "Servidor escuchando en el puerto " << port << endl;
 
     // Bucle principal para aceptar conexiones
     while (true) {
         // Aceptar una nueva conexión
         client_socket = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
         if (client_socket < 0) {
-            std::cerr << "Error al aceptar la conexión" << std::endl;
+            cerr << "Error al aceptar la conexión" << endl;
             continue;  // Volver a intentar aceptar nuevas conexiones
         }
 
-        std::cout << "Conexión aceptada desde IP: " 
-                  << inet_ntoa(client_addr.sin_addr) << std::endl;
+        cout << "Conexión aceptada desde IP: " 
+             << inet_ntoa(client_addr.sin_addr) << endl;
 
         // Crear un nuevo proceso para manejar la conexión
         pid_t pid = fork();
@@ -87,7 +90,7 @@ int main() {
             close(client_socket);  // El proceso padre ya no necesita el socket del cliente
             // El padre vuelve a escuchar por nuevas conexiones
         } else {
-            std::cerr << "Error al crear el proceso hijo" << std::endl;
+            cerr << "Error al crear el proceso hijo" << endl;
         }
     }
 
