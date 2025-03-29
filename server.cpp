@@ -33,6 +33,7 @@ int read_config() {
 
 // Función para manejar la conexión con un cliente
 void handle_client(int client_socket) {
+    // ------------------------------------------------------------ //
     char buffer[1024];
     int bytes_received;
 
@@ -57,6 +58,7 @@ void handle_client(int client_socket) {
     } else if (bytes_received == -1) {
         cerr << "Error al recibir los datos del cliente" << endl;
     }
+    // ------------------------------------------------------------ //
 
     // Cerrar el socket del cliente después de terminar la comunicación
     close(client_socket);

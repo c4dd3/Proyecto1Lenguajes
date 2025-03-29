@@ -67,6 +67,8 @@ int main() {
 
     cout << "Conectado al servidor!" << endl;
 
+    // ------------------------------------------------------------ //
+    // TODO: CODIGO PARA ENVIAR Y RECIBIR MENSAJES, STANDBY SYSTEM //
     // Enviar un mensaje al servidor
     const char *message = "Hola, servidor!";
     send(client_fd, message, strlen(message), 0);
@@ -79,6 +81,8 @@ int main() {
     } else {
         cerr << "Error al recibir el mensaje del servidor" << endl;
     }
+
+    // ------------------------------------------------------------ //
 
     // Cerrar la conexión con el servidor
     close(client_fd);
