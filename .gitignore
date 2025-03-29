@@ -1,4 +1,4 @@
 yes
 yes.pub
-server
-client
+server.o
+client.o
