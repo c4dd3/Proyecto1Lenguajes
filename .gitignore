@@ -1,4 +1,10 @@
 yes
 yes.pub
-server.o
-client.o
+
+server
+client
+
+*.o
+
+*.out
+*.exe
