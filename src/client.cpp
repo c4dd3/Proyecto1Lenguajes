@@ -73,6 +73,15 @@ int main() {
 
     cout << "Conectado al servidor!" << endl;
 
+    // Recibir la respuesta del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_received > 0) {
+        cout << "Respuesta del servidor: " << buffer << endl;
+    } else {
+        cerr << "Error al recibir la respuesta del servidor" << endl;
+    }
+
     // Menú para el cliente
     int opcion;
     string nombre, apellido, correo, contrasena;
