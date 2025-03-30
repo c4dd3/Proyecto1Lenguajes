@@ -15,6 +15,13 @@
 
 using namespace std;
 
+struct Contacto {
+    string nombre;
+    string apellido;
+    string correo;
+};
+vector<Contacto> lista_contactos;
+
 // Función para leer el archivo de configuración y obtener el puerto
 void read_config(string &server_ip, int &server_port) {
     ifstream config_file("config.txt");
@@ -32,6 +39,30 @@ void read_config(string &server_ip, int &server_port) {
         config_file.close();
     } else {
         cerr << "Error al leer el archivo de configuración." << endl;
+    }
+}
+
+// Función para agregar un contacto
+void agregar_contacto(const Contacto &nuevo_contacto) {
+    for (const auto &c : lista_contactos) {
+        if (c.correo == nuevo_contacto.correo) {
+            cout << "El contacto ya está en la lista." << endl;
+            return;
+        }
+    }
+    lista_contactos.push_back(nuevo_contacto);
+    cout << "Contacto agregado correctamente." << endl;
+}
+
+// Función para mostrar la lista de contactos
+void mostrar_contactos() {
+    cout << "\nLista de contactos:\n";
+    if (lista_contactos.empty()) {
+        cout << "No tienes contactos agregados." << endl;
+    } else {
+        for (const auto &c : lista_contactos) {
+            cout << "- " << c.nombre << " " << c.apellido << " (" << c.correo << ")" << endl;
+        }
     }
 }
 
@@ -93,6 +124,7 @@ int main() {
         cout << "3. Desconectar\n";
         cout << "4. Salir\n";
         cout << "5. Agregar Contacto\n";
+        cout << "6. Mostrar Contactos\n";
         cout << "Opción: ";
         cin >> opcion;
 
@@ -163,25 +195,41 @@ int main() {
             cout << "Cerrando conexión..." << endl;
             break;
         }
-        else if (opcion == 5) {  // GETUSER
-            cout << "Ingrese su correo para obtener la información: ";
+        else if (opcion == 5) {  
+            // Agregar Contacto
+            cout << "Ingrese el correo del usuario a agregar: ";
             cin >> correo;
         
             string comando = "GETUSER " + correo;
-        
-            // Enviar el comando al servidor
             send(client_fd, comando.c_str(), comando.length(), 0);
         
             // Recibir la respuesta del servidor
             char buffer[1024] = {0};
             int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            
             if (bytes_received > 0) {
-                cout << "Información del usuario recibida:\n" << buffer << endl;
+                string respuesta(buffer);
+        
+                if (respuesta.find("ERROR") != string::npos) {
+                    cout << respuesta << endl;
+                } else {
+                    istringstream ss(respuesta);
+                    string temp, nombre, apellido, correo;
+        
+                    ss >> temp >> nombre;
+                    ss >> temp >> apellido;
+                    ss >> temp >> correo;
+        
+                    Contacto nuevo_contacto = {nombre, apellido, correo};
+                    agregar_contacto(nuevo_contacto);
+                }
             } else {
                 cerr << "Error al recibir la información del usuario." << endl;
             }
         }
-        
+        else if (opcion == 6) {  // Mostrar Contactos
+            mostrar_contactos();
+        }
         else {
             cout << "Opción no válida. Intente nuevamente." << endl;
         }

@@ -299,9 +299,7 @@ void get_user_info(int client_socket, const string &comando) {
             found = true;
             user_info = "Nombre: " + string(shared_data->lista_usuarios[i].nombre) +
                         "\nApellido: " + string(shared_data->lista_usuarios[i].apellido) +
-                        "\nCorreo: " + string(shared_data->lista_usuarios[i].correo) +
-                        "\nEstado: " + (shared_data->lista_usuarios[i].conectado ? "Conectado" : "Desconectado") +
-                        "\nIP: " + string(shared_data->lista_usuarios[i].ip_cliente) + "\n";
+                        "\nCorreo: " + string(shared_data->lista_usuarios[i].correo);
             break;
         }
     }
