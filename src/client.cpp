@@ -6,10 +6,11 @@
 #include <cstring>
 #include <netdb.h>  // Para gethostbyname()
 #include <fstream>   // Para leer el archivo de configuración
+#include <sstream>   // Para manejar el stringstream
 
 using namespace std;
 
-// Función para leer el archivo de configuración y obtener el puerto
+// Función para leer el archivo de configuración y obtener la IP y el puerto
 void read_config(string &server_ip, int &server_port) {
     ifstream config_file("config.txt");
 
@@ -68,18 +69,25 @@ int main() {
     cout << "Conectado al servidor!" << endl;
 
     // ------------------------------------------------------------ //
-    // TODO: CODIGO PARA ENVIAR Y RECIBIR MENSAJES, STANDBY SYSTEM //
-    // Enviar un mensaje al servidor
-    const char *message = "Hola, servidor!";
-    send(client_fd, message, strlen(message), 0);
+    // Enviar el comando de registro con los datos del nuevo usuario
+    string nombre = "Juan";
+    string apellido = "Perez";
+    string correo = "juan.perez@example.com";
+    string contrasena = "miContrasena123";
 
-    // Recibir la respuesta del servidor
+    // Crear el comando REGISTER
+    string comando = "REGISTER " + nombre + " " + apellido + " " + correo + " " + contrasena;
+
+    // Enviar el comando al servidor
+    send(client_fd, comando.c_str(), comando.length(), 0);
+
+    // Recibir la respuesta del servidor sobre el registro
     char buffer[1024] = {0};
     int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
     if (bytes_received > 0) {
-        cout << "Mensaje recibido del servidor: " << buffer << endl;
+        cout << "Respuesta del servidor: " << buffer << endl;
     } else {
-        cerr << "Error al recibir el mensaje del servidor" << endl;
+        cerr << "Error al recibir la respuesta del servidor" << endl;
     }
 
     // ------------------------------------------------------------ //
