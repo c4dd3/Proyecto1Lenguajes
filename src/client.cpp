@@ -73,13 +73,20 @@ int main() {
 
     cout << "Conectado al servidor!" << endl;
 
-    // Recibir la respuesta del servidor
+    // Recibir la respuesta del servidor (confirmación de conexión)
     char buffer[1024] = {0};
     int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
     if (bytes_received > 0) {
+        buffer[bytes_received] = '\0';  // Asegurarse de que el buffer esté terminado correctamente
         cout << "Respuesta del servidor: " << buffer << endl;
+    } else if (bytes_received == 0) {
+        cerr << "El servidor cerró la conexión antes de enviar datos." << endl;
+        close(client_fd);
+        return -1;
     } else {
-        cerr << "Error al recibir la respuesta del servidor" << endl;
+        cerr << "Error al recibir la respuesta del servidor." << endl;
+        close(client_fd);
+        return -1;
     }
 
     // Menú para el cliente
@@ -111,12 +118,18 @@ int main() {
             send(client_fd, comando.c_str(), comando.length(), 0);
 
             // Recibir la respuesta del servidor
-            char buffer[1024] = {0};
-            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
             if (bytes_received > 0) {
+                buffer[bytes_received] = '\0';  // Asegurarse de que el buffer esté terminado correctamente
                 cout << "Respuesta del servidor: " << buffer << endl;
+            } else if (bytes_received == 0) {
+                cerr << "El servidor cerró la conexión antes de enviar datos." << endl;
+                close(client_fd);
+                return -1;
             } else {
-                cerr << "Error al recibir la respuesta del servidor" << endl;
+                cerr << "Error al recibir la respuesta del servidor." << endl;
+                close(client_fd);
+                return -1;
             }
         } 
         else if (opcion == 2) {
@@ -132,12 +145,18 @@ int main() {
             send(client_fd, comando.c_str(), comando.length(), 0);
 
             // Recibir la respuesta del servidor
-            char buffer[1024] = {0};
-            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
             if (bytes_received > 0) {
+                buffer[bytes_received] = '\0';  // Asegurarse de que el buffer esté terminado correctamente
                 cout << "Respuesta del servidor: " << buffer << endl;
+            } else if (bytes_received == 0) {
+                cerr << "El servidor cerró la conexión antes de enviar datos." << endl;
+                close(client_fd);
+                return -1;
             } else {
-                cerr << "Error al recibir la respuesta del servidor" << endl;
+                cerr << "Error al recibir la respuesta del servidor." << endl;
+                close(client_fd);
+                return -1;
             }
         } 
         else if (opcion == 3) {
