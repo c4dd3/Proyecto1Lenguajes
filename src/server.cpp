@@ -11,6 +11,8 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <sstream>
+
 #define MAX_CONNECTIONS 100
 #define DEFAULT_PORT 8080
 #define SHM_KEY 1234
