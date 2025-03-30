@@ -15,6 +15,14 @@
 
 using namespace std;
 
+struct Usuario {
+    char nombre[50];
+    char apellido[50];
+    char correo[50];
+    char contrasena[50];
+};
+struct Usuario usuario_autenticado;
+
 struct Contacto {
     string nombre;
     string apellido;
@@ -66,57 +74,204 @@ void mostrar_contactos() {
     }
 }
 
-int main() {
-    int client_fd;
-    struct sockaddr_in server_addr;
+// Función para agregar un contacto desde la interfaz
+void agregar_contacto_func(int client_fd) {
+    string correo;
+    cout << "Ingrese el correo del usuario a agregar: ";
+    cin >> correo;
+    string comando = "GETUSER " + correo;
+    send(client_fd, comando.c_str(), comando.length(), 0);
+    // Recibir la respuesta del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_received > 0) {
+        string respuesta(buffer);
+        if (respuesta.find("ERROR") != string::npos) {
+            cout << respuesta << endl;
+        } else {
+            istringstream ss(respuesta);
+            string temp, nombre, apellido, correo;
+            ss >> temp >> nombre;
+            ss >> temp >> apellido;
+            ss >> temp >> correo;
+            Contacto nuevo_contacto = {nombre, apellido, correo};
 
-    // Variables para la IP y el puerto del servidor
-    string server_ip = "127.0.0.1";  // Valor por defecto
-    int server_port = 8080;          // Valor por defecto
-
-    // Leer el archivo de configuración para obtener la IP y el puerto
-    read_config(server_ip, server_port);
-
-    // Mostrar la IP y puerto que se utilizarán para la conexión
-    cout << "Conectando al servidor en IP: " << server_ip << " y puerto: " << server_port << endl;
-
-    // Crear el socket del cliente
-    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        cerr << "Error al crear el socket del cliente" << endl;
-        return -1;
+            // Si el contacto es el propio usuario, lo guardamos en la variable usuario_autenticado
+            if (correo == usuario_autenticado.correo) {
+                usuario_autenticado.nombre = nombre;
+                usuario_autenticado.apellido = apellido;
+                usuario_autenticado.correo = correo;
+                cout << "Datos de usuario actualizados." << endl;
+            } else {
+                agregar_contacto(nuevo_contacto);
+            }
+        }
+    } else {
+        cerr << "Error al recibir la información del usuario." << endl;
     }
+}
 
-    // Configuración de la dirección del servidor
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(server_port);  // Puerto del servidor
+// Interfaz pos-ingreso
+void interfazAutenticado(int client_fd) {
+    int opcion;
 
-    // Convertir la dirección IP del servidor a formato binario
-    if (inet_pton(AF_INET, server_ip.c_str(), &server_addr.sin_addr) <= 0) {
-        cerr << "Error en la conversión de la dirección IP" << endl;
-        return -1;
+    cout << "\n¡Hola, " << usuario_autenticado.nombre << "!" << endl;
+    
+    while (true) {
+        cout << "\nElija una opción: \n";
+        cout << "1. Agregar Contacto\n";
+        cout << "2. Mostrar Contactos\n";
+        cout << "3. Desconectar\n";
+        cout << "Opción: ";
+        cin >> opcion;
+        
+        if (opcion == 1) {
+            // Agregar Contacto
+            agregar_contacto_func(client_fd);
+        } else if (opcion == 2) {  // Mostrar Contactos
+            mostrar_contactos();
+        } else if (opcion == 3) {  // Desconectar
+            disconnect(client_fd);
+            break; // Salir del ciclo si se desconecta
+        } else {
+            cout << "Opción no válida. Intente nuevamente." << endl;
+        }
     }
+}
 
-    // Conectar al servidor
-    if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        cerr << "Error al conectar con el servidor" << endl;
-        return -1;
+// Función para registrar nuevo usuario
+void registrarse(string nombre, string apellido, string correo, string contrasena, int client_fd){
+    cout << "Ingrese su nombre: ";
+    cin >> nombre;
+    cout << "Ingrese su apellido: ";
+    cin >> apellido;
+    cout << "Ingrese su correo: ";
+    cin >> correo;
+    cout << "Ingrese su contraseña: ";
+    cin >> contrasena;
+    string comando = "REGISTER " + nombre + " " + apellido + " " + correo + " " + contrasena;
+    // Enviar el comando al servidor
+    send(client_fd, comando.c_str(), comando.length(), 0);
+    // Recibir la respuesta del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_received > 0) {
+        string respuesta(buffer);
+        cout << "Respuesta del servidor: " << respuesta << endl;
+        if (respuesta.find("Registro exitoso") != string::npos) {
+            // Si el registro es exitoso, buscar al usuario en el servidor
+            // Obtener los datos del usuario
+            string comando_getuser = "GETUSER " + correo;
+            send(client_fd, comando_getuser.c_str(), comando_getuser.length(), 0);
+
+            // Recibir la respuesta del servidor
+            bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            if (bytes_received > 0) {
+                string respuesta_usuario(buffer);
+                if (respuesta_usuario.find("ERROR") == string::npos) {
+                    // Parsear la respuesta del servidor
+                    istringstream ss(respuesta_usuario);
+                    string temp, nombre, apellido, correo;
+                    ss >> temp >> nombre;     // Ignorar "User"
+                    ss >> temp >> apellido;   // Ignorar "Apellido"
+                    ss >> temp >> correo;     // Ignorar "Correo"
+                    // Guardar la información en la variable global usuario_autenticado
+                    usuario_autenticado.nombre = nombre;
+                    usuario_autenticado.apellido = apellido;
+                    usuario_autenticado.correo = correo;
+                    usuario_autenticado.contrasena = contrasena;
+
+                    cout << "Datos de usuario guardados correctamente." << endl;
+                    // Ahora que ya tenemos la información, podemos ir a la interfaz autenticada
+                    interfazAutenticado(client_fd);
+                } else {
+                    cout << "Error al obtener la información del usuario." << endl;
+                }
+            } else {
+                cerr << "Error al recibir la información del usuario." << endl;
+            }
+        }
+    } else {
+        cerr << "Error al recibir la respuesta del servidor" << endl;
     }
+}
 
-    cout << "Conectado al servidor!" << endl;
+// Función para iniciar sesión
+void iniciarSesion(string correo, string contrasena, int client_fd) {
+    cout << "Ingrese su correo: ";
+    cin >> correo;
+    cout << "Ingrese su contraseña: ";
+    cin >> contrasena;
+    
+    string comando = "LOGIN " + correo + " " + contrasena;
+    // Enviar el comando al servidor
+    send(client_fd, comando.c_str(), comando.length(), 0);
 
     // Recibir la respuesta del servidor
     char buffer[1024] = {0};
     int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
     if (bytes_received > 0) {
-        cout << "Respuesta del servidor: " << buffer << endl;
+        string respuesta(buffer);
+        cout << "Respuesta del servidor: " << respuesta << endl;
+        
+        // Si el inicio de sesión fue exitoso
+        if (respuesta.find("Login exitoso") != string::npos) {
+            // Ahora obtenemos los datos del usuario autenticado
+            string comando_getuser = "GETUSER " + correo;
+            send(client_fd, comando_getuser.c_str(), comando_getuser.length(), 0);
+
+            // Recibir la respuesta del servidor
+            bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            if (bytes_received > 0) {
+                string respuesta_usuario(buffer);
+                if (respuesta_usuario.find("ERROR") == string::npos) {
+                    // Parsear la respuesta del servidor
+                    istringstream ss(respuesta_usuario);
+                    string temp, nombre, apellido, correo;
+                    ss >> temp >> nombre;     // Ignorar "User"
+                    ss >> temp >> apellido;   // Ignorar "Apellido"
+                    ss >> temp >> correo;     // Ignorar "Correo"
+                    
+                    // Guardar la información en la variable global usuario_autenticado
+                    usuario_autenticado.nombre = nombre;
+                    usuario_autenticado.apellido = apellido;
+                    usuario_autenticado.correo = correo;
+                    usuario_autenticado.contrasena = contrasena;
+
+                    cout << "Datos de usuario guardados correctamente." << endl;
+                    // Ahora que ya tenemos la información, podemos ir a la interfaz autenticada
+                    interfazAutenticado(client_fd);
+                } else {
+                    cout << "Error al obtener la información del usuario." << endl;
+                }
+            } else {
+                cerr << "Error al recibir la información del usuario." << endl;
+            }
+        }
     } else {
         cerr << "Error al recibir la respuesta del servidor" << endl;
     }
+}
 
-    // Menú para el cliente
+// Función para Desonectar al usuario
+void disconnect(int client_fd){
+    string comando = "DISCONNECT";
+    send(client_fd, comando.c_str(), comando.length(), 0);
+    // Recibir confirmación del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_received > 0) {
+        cout << "Respuesta del servidor: " << buffer << endl;
+    }
+    cout << "Cerrando conexión..." << endl;
+    close(client_fd);
+    exit(0);
+}
+
+// Interfaz Inicial
+void interfazInicial(int client_fd){
     int opcion;
     string nombre, apellido, correo, contrasena;
-
     while (true) {
         cout << "\nElija una opción: \n";
         cout << "1. Registrarse\n";
@@ -126,95 +281,37 @@ int main() {
         cout << "5. Mostrar Contactos\n";
         cout << "Opción: ";
         cin >> opcion;
-
         if (opcion == 1) {
             // Registro de usuario
-            cout << "Ingrese su nombre: ";
-            cin >> nombre;
-            cout << "Ingrese su apellido: ";
-            cin >> apellido;
-            cout << "Ingrese su correo: ";
-            cin >> correo;
-            cout << "Ingrese su contraseña: ";
-            cin >> contrasena;
-
-            string comando = "REGISTER " + nombre + " " + apellido + " " + correo + " " + contrasena;
-
-            // Enviar el comando al servidor
-            send(client_fd, comando.c_str(), comando.length(), 0);
-
-            // Recibir la respuesta del servidor
-            char buffer[1024] = {0};
-            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-            if (bytes_received > 0) {
-                cout << "Respuesta del servidor: " << buffer << endl;
-            } else {
-                cerr << "Error al recibir la respuesta del servidor" << endl;
-            }
+            registrarse(nombre, apellido, correo, contrasena, client_fd);
         } 
         else if (opcion == 2) {
             // Iniciar sesión
-            cout << "Ingrese su correo: ";
-            cin >> correo;
-            cout << "Ingrese su contraseña: ";
-            cin >> contrasena;
-
-            string comando = "LOGIN " + correo + " " + contrasena;
-
-            // Enviar el comando al servidor
-            send(client_fd, comando.c_str(), comando.length(), 0);
-
-            // Recibir la respuesta del servidor
-            char buffer[1024] = {0};
-            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-            if (bytes_received > 0) {
-                cout << "Respuesta del servidor: " << buffer << endl;
-            } else {
-                cerr << "Error al recibir la respuesta del servidor" << endl;
-            }
+            iniciarSesion(correo, contrasena, client_fd);
         } 
         else if (opcion == 3) {
             // Desconectar
-            string comando = "DISCONNECT";
-            send(client_fd, comando.c_str(), comando.length(), 0);
-        
-            // Recibir confirmación del servidor
-            char buffer[1024] = {0};
-            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-            if (bytes_received > 0) {
-                cout << "Respuesta del servidor: " << buffer << endl;
-            }
-        
-            cout << "Cerrando conexión..." << endl;
-            close(client_fd);
-            exit(0);
+            disconnect(client_fd);
         }
-        
         else if (opcion == 4) {  
             // Agregar Contacto
             cout << "Ingrese el correo del usuario a agregar: ";
             cin >> correo;
-        
             string comando = "GETUSER " + correo;
             send(client_fd, comando.c_str(), comando.length(), 0);
-        
             // Recibir la respuesta del servidor
             char buffer[1024] = {0};
             int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-            
             if (bytes_received > 0) {
                 string respuesta(buffer);
-        
                 if (respuesta.find("ERROR") != string::npos) {
                     cout << respuesta << endl;
                 } else {
                     istringstream ss(respuesta);
                     string temp, nombre, apellido, correo;
-        
                     ss >> temp >> nombre;
                     ss >> temp >> apellido;
                     ss >> temp >> correo;
-        
                     Contacto nuevo_contacto = {nombre, apellido, correo};
                     agregar_contacto(nuevo_contacto);
                 }
@@ -229,7 +326,56 @@ int main() {
             cout << "Opción no válida. Intente nuevamente." << endl;
         }
     }
+}
 
-    close(client_fd);
+// Función que inicia la conxión con el servidor
+int startConnection(){
+    int client_fd;
+    struct sockaddr_in server_addr;
+    // Variables para la IP y el puerto del servidor
+    string server_ip = "127.0.0.1";  // Valor por defecto
+    int server_port = 8080;          // Valor por defecto
+    // Leer el archivo de configuración para obtener la IP y el puerto
+    read_config(server_ip, server_port);
+    // Mostrar la IP y puerto que se utilizarán para la conexión
+    cout << "Conectando al servidor en IP: " << server_ip << " y puerto: " << server_port << endl;
+    // Crear el socket del cliente
+    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        cerr << "Error al crear el socket del cliente" << endl;
+        return -1;
+    }
+    // Configuración de la dirección del servidor
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(server_port);  // Puerto del servidor
+    // Convertir la dirección IP del servidor a formato binario
+    if (inet_pton(AF_INET, server_ip.c_str(), &server_addr.sin_addr) <= 0) {
+        cerr << "Error en la conversión de la dirección IP" << endl;
+        return -1;
+    }
+    // Conectar al servidor
+    if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        cerr << "Error al conectar con el servidor" << endl;
+        return -1;
+    }
+    cout << "Conectado al servidor!" << endl;
+    // Recibir la respuesta del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_received > 0) {
+        cout << "Respuesta del servidor: " << buffer << endl;
+    } else {
+
+        cerr << "Error al recibir la respuesta del servidor" << endl;
+    }
+
+    // Menú para el cliente
+    interfazInicial(client_fd);
+
+    close(client_fd); 
+    return 0;
+}
+
+int main() {
+    startConnection()
     return 0;
 }
