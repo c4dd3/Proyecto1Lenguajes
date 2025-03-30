@@ -222,6 +222,46 @@ void login_user(int client_socket, const string& comando) {
     sem_post(sem);  // Liberar semáforo
 }
 
+// Función para obtener la información de un usuario
+void get_user_info(int client_socket, const string &comando) {
+    // Extraer el correo del usuario desde el comando
+    istringstream ss(comando);
+    string command, correo;
+    ss >> command >> correo;
+
+    if (correo.empty()) {
+        const char *error_msg = "ERROR: Debe proporcionar un correo para obtener la información.\n";
+        send(client_socket, error_msg, strlen(error_msg), 0);
+        return;
+    }
+
+    sem_wait(sem);  // Bloquear semáforo para proteger la lista de usuarios
+
+    bool found = false;
+    string user_info;
+
+    for (int i = 0; i < shared_data->user_count; ++i) {
+        if (shared_data->lista_usuarios[i].correo == correo) {
+            found = true;
+            user_info = "Nombre: " + string(shared_data->lista_usuarios[i].nombre) +
+                        "\nApellido: " + string(shared_data->lista_usuarios[i].apellido) +
+                        "\nCorreo: " + string(shared_data->lista_usuarios[i].correo) +
+                        "\nEstado: " + (shared_data->lista_usuarios[i].conectado ? "Conectado" : "Desconectado") +
+                        "\nIP: " + string(shared_data->lista_usuarios[i].ip_cliente) + "\n";
+            break;
+        }
+    }
+
+    sem_post(sem);  // Liberar semáforo
+
+    if (found) {
+        send(client_socket, user_info.c_str(), user_info.length(), 0);
+    } else {
+        const char *not_found_msg = "ERROR: Usuario no encontrado.\n";
+        send(client_socket, not_found_msg, strlen(not_found_msg), 0);
+    }
+}
+
 // Función para manejar la conexión con un cliente
 void handle_client(int client_socket) {
     char buffer[1024];
@@ -256,7 +296,10 @@ void handle_client(int client_socket) {
             send(client_socket, disconnect_msg, strlen(disconnect_msg), 0);
             break;  // Salir del bucle y cerrar la conexión
         }
-        // Puedes añadir más comandos aquí para procesar mensajes, buscar personas, etc.
+        // Si es el comando "GETUSER"
+        else if (comando.substr(0, 7) == "GETUSER"){
+            get_user_info(client_socket, comando);
+        }
         else {
             const char* error_msg = "Comando no reconocido.\n";
             send(client_socket, error_msg, strlen(error_msg), 0);

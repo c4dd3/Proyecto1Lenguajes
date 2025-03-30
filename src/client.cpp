@@ -92,6 +92,7 @@ int main() {
         cout << "2. Iniciar sesión\n";
         cout << "3. Desconectar\n";
         cout << "4. Salir\n";
+        cout << "5. Agregar Contacto";
         cout << "Opción: ";
         cin >> opcion;
 
@@ -157,6 +158,25 @@ int main() {
             cout << "Cerrando conexión..." << endl;
             break;
         }
+        else if (opcion == 5) {  // GETUSER
+            cout << "Ingrese su correo para obtener la información: ";
+            cin >> correo;
+        
+            string comando = "GETUSER " + correo;
+        
+            // Enviar el comando al servidor
+            send(client_fd, comando.c_str(), comando.length(), 0);
+        
+            // Recibir la respuesta del servidor
+            char buffer[1024] = {0};
+            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            if (bytes_received > 0) {
+                cout << "Información del usuario recibida:\n" << buffer << endl;
+            } else {
+                cerr << "Error al recibir la información del usuario." << endl;
+            }
+        }
+        
         else {
             cout << "Opción no válida. Intente nuevamente." << endl;
         }
