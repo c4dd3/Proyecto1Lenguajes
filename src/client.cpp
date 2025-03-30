@@ -6,11 +6,10 @@
 #include <cstring>
 #include <netdb.h>  // Para gethostbyname()
 #include <fstream>   // Para leer el archivo de configuración
-#include <sstream>   // Para manejar el stringstream
 
 using namespace std;
 
-// Función para leer el archivo de configuración y obtener la IP y el puerto
+// Función para leer el archivo de configuración y obtener el puerto
 void read_config(string &server_ip, int &server_port) {
     ifstream config_file("config.txt");
 
@@ -69,19 +68,26 @@ int main() {
     cout << "Conectado al servidor!" << endl;
 
     // ------------------------------------------------------------ //
-    // Enviar el comando de registro con los datos del nuevo usuario
-    string nombre = "Juan";
-    string apellido = "Perez";
-    string correo = "juan.perez@example.com";
-    string contrasena = "miContrasena123";
+    // FUNCION DE REGISTRO DE USUARIO:
+    string nombre, apellido, correo, contrasena;
+    
+    // Pedir los datos al usuario
+    cout << "Ingrese su nombre: ";
+    cin >> nombre;
+    cout << "Ingrese su apellido: ";
+    cin >> apellido;
+    cout << "Ingrese su correo: ";
+    cin >> correo;
+    cout << "Ingrese su contraseña: ";
+    cin >> contrasena;
 
-    // Crear el comando REGISTER
+    // Construir el comando REGISTER
     string comando = "REGISTER " + nombre + " " + apellido + " " + correo + " " + contrasena;
 
     // Enviar el comando al servidor
     send(client_fd, comando.c_str(), comando.length(), 0);
 
-    // Recibir la respuesta del servidor sobre el registro
+    // Recibir la respuesta del servidor
     char buffer[1024] = {0};
     int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
     if (bytes_received > 0) {
@@ -89,8 +95,6 @@ int main() {
     } else {
         cerr << "Error al recibir la respuesta del servidor" << endl;
     }
-
-    // ------------------------------------------------------------ //
 
     // Cerrar la conexión con el servidor
     close(client_fd);

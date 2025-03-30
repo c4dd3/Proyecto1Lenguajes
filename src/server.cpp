@@ -14,8 +14,6 @@
 #define MAX_CONNECTIONS 100
 #define DEFAULT_PORT 8080
 #define SHM_KEY 1234
-// Variable de control para salir del ciclo principal
-bool server_running = true;
 
 using namespace std;
 
@@ -139,22 +137,15 @@ void cargar_usuarios() {
     user_file.close();
 }
 
-// Función para registrar nuevo usuario
-void process_register_command(int client_socket, const string& comando) {
-    // Extraer los datos del comando
-    stringstream ss(comando.substr(8));  // Después de "REGISTER "
+// Función para registrar un nuevo usuario
+void register_user(int client_socket, const string& comando) {
+    // Extraer los datos del usuario desde el comando
+    stringstream ss(comando.substr(8));  // Extraer todo después de "REGISTER "
     string nombre, apellido, correo, contrasena;
     ss >> nombre >> apellido >> correo >> contrasena;
 
-    // Validación de los parámetros
-    if (nombre.empty() || apellido.empty() || correo.empty() || contrasena.empty()) {
-        const char* error_msg = "Datos incompletos. Todos los campos son obligatorios.\n";
-        send(client_socket, error_msg, strlen(error_msg), 0);
-        return;
-    }
-
-    // Verificar si el correo ya está registrado
-    sem_wait(sem);
+    // Comprobamos si el correo ya está registrado
+    sem_wait(sem);  // Bloquear semáforo para proteger la lista de usuarios
     bool usuario_existe = false;
     for (int i = 0; i < shared_data->user_count; ++i) {
         if (shared_data->lista_usuarios[i].correo == correo) {  // Comprobación por correo
@@ -171,22 +162,23 @@ void process_register_command(int client_socket, const string& comando) {
         Usuario nuevo_usuario;
         strcpy(nuevo_usuario.nombre, nombre.c_str());
         strcpy(nuevo_usuario.apellido, apellido.c_str());
-        strcpy(nuevo_usuario.correo, correo.c_str());  // Guardar el correo
+        strcpy(nuevo_usuario.correo, correo.c_str());
         strcpy(nuevo_usuario.contrasena, contrasena.c_str());
-        strcpy(nuevo_usuario.ip_cliente, "0.0.0.0");
+        strcpy(nuevo_usuario.ip_cliente, "0.0.0.0");  // Asignar IP por defecto
         nuevo_usuario.conectado = false;
         nuevo_usuario.socket_cliente = -1;
 
+        // Añadir el nuevo usuario a la lista
         shared_data->lista_usuarios[shared_data->user_count] = nuevo_usuario;
         shared_data->user_count++;
 
-        // Guardar el nuevo usuario en el archivo
+        // Guardar los usuarios en el archivo
         guardar_usuarios();
 
         const char* success_msg = "Registro exitoso.\n";
         send(client_socket, success_msg, strlen(success_msg), 0);
     }
-    sem_post(sem);
+    sem_post(sem);  // Liberar semáforo
 }
 
 // Función para manejar la conexión con un cliente
@@ -209,12 +201,11 @@ void handle_client(int client_socket) {
 
     string comando(buffer);
 
-    if (comando.substr(0, 7) == "REGISTER") {
-        // Llamar a la función para procesar el registro
-        process_register_command(client_socket, comando);
+    // Si el comando es "REGISTER"
+    if (comando.substr(0, 8) == "REGISTER") {
+        register_user(client_socket, comando);  // Llamada a la función register_user
     }
-
-    // Otros comandos como LOGIN, SEND_MESSAGE, etc.
+    // Otros comandos como LOGIN, SEND_MESSAGE, etc. pueden ser procesados aquí
 }
 
 
@@ -262,6 +253,9 @@ int main() {
     }
 
     cout << "Servidor escuchando en el puerto " << port << endl;
+
+    // Variable de control para salir del ciclo principal
+    bool server_running = true;
 
     // Función de manejo de señales (para cerrar el servidor de forma controlada)
     auto shutdown_server = [](int signum) {
