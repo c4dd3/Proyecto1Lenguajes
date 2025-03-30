@@ -4,8 +4,14 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cstring>
-#include <netdb.h>  // Para gethostbyname()
-#include <fstream>   // Para leer el archivo de configuración
+#include <fstream>
+#include <vector>
+#include <sys/shm.h>
+#include <semaphore.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <sstream>
 
 using namespace std;
 
@@ -67,37 +73,74 @@ int main() {
 
     cout << "Conectado al servidor!" << endl;
 
-    // ------------------------------------------------------------ //
-    // FUNCION DE REGISTRO DE USUARIO:
+    // Menú para el cliente
+    int opcion;
     string nombre, apellido, correo, contrasena;
-    
-    // Pedir los datos al usuario
-    cout << "Ingrese su nombre: ";
-    cin >> nombre;
-    cout << "Ingrese su apellido: ";
-    cin >> apellido;
-    cout << "Ingrese su correo: ";
-    cin >> correo;
-    cout << "Ingrese su contraseña: ";
-    cin >> contrasena;
 
-    // Construir el comando REGISTER
-    string comando = "REGISTER " + nombre + " " + apellido + " " + correo + " " + contrasena;
+    while (true) {
+        cout << "\nElija una opción: \n";
+        cout << "1. Registrarse\n";
+        cout << "2. Iniciar sesión\n";
+        cout << "3. Salir\n";
+        cout << "Opción: ";
+        cin >> opcion;
 
-    // Enviar el comando al servidor
-    send(client_fd, comando.c_str(), comando.length(), 0);
+        if (opcion == 1) {
+            // Registro de usuario
+            cout << "Ingrese su nombre: ";
+            cin >> nombre;
+            cout << "Ingrese su apellido: ";
+            cin >> apellido;
+            cout << "Ingrese su correo: ";
+            cin >> correo;
+            cout << "Ingrese su contraseña: ";
+            cin >> contrasena;
 
-    // Recibir la respuesta del servidor
-    char buffer[1024] = {0};
-    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-    if (bytes_received > 0) {
-        cout << "Respuesta del servidor: " << buffer << endl;
-    } else {
-        cerr << "Error al recibir la respuesta del servidor" << endl;
+            string comando = "REGISTER " + nombre + " " + apellido + " " + correo + " " + contrasena;
+
+            // Enviar el comando al servidor
+            send(client_fd, comando.c_str(), comando.length(), 0);
+
+            // Recibir la respuesta del servidor
+            char buffer[1024] = {0};
+            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            if (bytes_received > 0) {
+                cout << "Respuesta del servidor: " << buffer << endl;
+            } else {
+                cerr << "Error al recibir la respuesta del servidor" << endl;
+            }
+        } 
+        else if (opcion == 2) {
+            // Iniciar sesión
+            cout << "Ingrese su correo: ";
+            cin >> correo;
+            cout << "Ingrese su contraseña: ";
+            cin >> contrasena;
+
+            string comando = "LOGIN " + correo + " " + contrasena;
+
+            // Enviar el comando al servidor
+            send(client_fd, comando.c_str(), comando.length(), 0);
+
+            // Recibir la respuesta del servidor
+            char buffer[1024] = {0};
+            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            if (bytes_received > 0) {
+                cout << "Respuesta del servidor: " << buffer << endl;
+            } else {
+                cerr << "Error al recibir la respuesta del servidor" << endl;
+            }
+        } 
+        else if (opcion == 3) {
+            // Salir
+            cout << "Cerrando conexión..." << endl;
+            break;
+        }
+        else {
+            cout << "Opción no válida. Intente nuevamente." << endl;
+        }
     }
 
-    // Cerrar la conexión con el servidor
     close(client_fd);
-
     return 0;
 }

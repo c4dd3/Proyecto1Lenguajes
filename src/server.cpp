@@ -195,6 +195,33 @@ void register_user(int client_socket, const string& comando) {
     sem_post(sem);  // Liberar semáforo
 }
 
+// Función para manejar el login de un usuario
+void login_user(int client_socket, const string& comando) {
+    // Extraer los datos de login
+    stringstream ss(comando.substr(6));  // Extraer todo después de "LOGIN "
+    string correo, contrasena;
+    ss >> correo >> contrasena;
+
+    sem_wait(sem);  // Bloquear semáforo para proteger la lista de usuarios
+    bool usuario_valido = false;
+    for (int i = 0; i < shared_data->user_count; ++i) {
+        if (shared_data->lista_usuarios[i].correo == correo && shared_data->lista_usuarios[i].contrasena == contrasena) {
+            usuario_valido = true;
+            break;
+        }
+    }
+
+    if (usuario_valido) {
+        const char* success_msg = "Login exitoso.\n";
+        send(client_socket, success_msg, strlen(success_msg), 0);
+    } else {
+        const char* error_msg = "Credenciales incorrectas.\n";
+        send(client_socket, error_msg, strlen(error_msg), 0);
+    }
+
+    sem_post(sem);  // Liberar semáforo
+}
+
 // Función para manejar la conexión con un cliente
 void handle_client(int client_socket) {
     char buffer[1024];
@@ -217,9 +244,14 @@ void handle_client(int client_socket) {
 
     // Si el comando es "REGISTER"
     if (comando.substr(0, 8) == "REGISTER") {
-        register_user(client_socket, comando);  // Llamada a la función register_user
+        register_user(client_socket, comando);  // Llamada a la función de registro
     }
-    // Otros comandos como LOGIN, SEND_MESSAGE, etc. pueden ser procesados aquí
+    // Si el comando es "LOGIN"
+    else if (comando.substr(0, 5) == "LOGIN") {
+        login_user(client_socket, comando);  // Llamada a la función de login
+    }
+    //Proceso de mensajes, buscar personas, etc, bucle abierto...
+    close(client_socket);
 }
 
 
