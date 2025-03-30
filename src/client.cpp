@@ -122,9 +122,8 @@ int main() {
         cout << "1. Registrarse\n";
         cout << "2. Iniciar sesión\n";
         cout << "3. Desconectar\n";
-        cout << "4. Salir\n";
-        cout << "5. Agregar Contacto\n";
-        cout << "6. Mostrar Contactos\n";
+        cout << "4. Agregar Contacto\n";
+        cout << "5. Mostrar Contactos\n";
         cout << "Opción: ";
         cin >> opcion;
 
@@ -190,12 +189,8 @@ int main() {
             close(client_fd);
             exit(0);
         }
-        else if (opcion == 4) {
-            // Salir
-            cout << "Cerrando conexión..." << endl;
-            break;
-        }
-        else if (opcion == 5) {  
+        
+        else if (opcion == 4) {  
             // Agregar Contacto
             cout << "Ingrese el correo del usuario a agregar: ";
             cin >> correo;
@@ -227,7 +222,7 @@ int main() {
                 cerr << "Error al recibir la información del usuario." << endl;
             }
         }
-        else if (opcion == 6) {  // Mostrar Contactos
+        else if (opcion == 5) {  // Mostrar Contactos
             mostrar_contactos();
         }
         else {
