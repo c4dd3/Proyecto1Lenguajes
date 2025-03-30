@@ -231,28 +231,42 @@ void handle_client(int client_socket) {
     const char* confirmation_msg = "Conexión establecida correctamente. Bienvenido al servidor de mensajería.\n";
     send(client_socket, confirmation_msg, strlen(confirmation_msg), 0);
 
-    // Recibir el comando del cliente (registrarse, login, etc.)
-    bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
-    if (bytes_received <= 0) {
-        cerr << "Error al recibir el comando o cliente desconectado." << endl;
-        close(client_socket);
-        return;
-    }
-    buffer[bytes_received] = '\0'; // Asegurarse de que el string esté correctamente terminado
+    while (true) {  // Bucle para recibir múltiples comandos del cliente
+        // Recibir el comando del cliente (registrarse, login, etc.)
+        bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+        if (bytes_received <= 0) {
+            cerr << "Error al recibir el comando o cliente desconectado." << endl;
+            break;  // Salir del bucle si se desconecta o hay un error
+        }
+        buffer[bytes_received] = '\0'; // Asegurarse de que el string esté correctamente terminado
 
-    string comando(buffer);
+        string comando(buffer);
 
-    // Si el comando es "REGISTER"
-    if (comando.substr(0, 8) == "REGISTER") {
-        register_user(client_socket, comando);  // Llamada a la función de registro
+        // Si el comando es "REGISTER"
+        if (comando.substr(0, 8) == "REGISTER") {
+            register_user(client_socket, comando);  // Llamada a la función de registro
+        }
+        // Si el comando es "LOGIN"
+        else if (comando.substr(0, 5) == "LOGIN") {
+            login_user(client_socket, comando);  // Llamada a la función de login
+        }
+        // Si el comando es "DISCONNECT"
+        else if (comando.substr(0, 10) == "DISCONNECT") {
+            const char* disconnect_msg = "Desconexión exitosa. Adiós.\n";
+            send(client_socket, disconnect_msg, strlen(disconnect_msg), 0);
+            break;  // Salir del bucle y cerrar la conexión
+        }
+        // Puedes añadir más comandos aquí para procesar mensajes, buscar personas, etc.
+        else {
+            const char* error_msg = "Comando no reconocido.\n";
+            send(client_socket, error_msg, strlen(error_msg), 0);
+        }
     }
-    // Si el comando es "LOGIN"
-    else if (comando.substr(0, 5) == "LOGIN") {
-        login_user(client_socket, comando);  // Llamada a la función de login
-    }
-    //Proceso de mensajes, buscar personas, etc, bucle abierto...
+
+    // Cerrar la conexión después de procesar todos los comandos
     close(client_socket);
 }
+
 
 
 int main() {
