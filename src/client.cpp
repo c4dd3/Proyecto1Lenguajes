@@ -92,7 +92,7 @@ int main() {
         cout << "2. Iniciar sesión\n";
         cout << "3. Desconectar\n";
         cout << "4. Salir\n";
-        cout << "5. Agregar Contacto";
+        cout << "5. Agregar Contacto\n";
         cout << "Opción: ";
         cin >> opcion;
 
@@ -113,6 +113,7 @@ int main() {
             send(client_fd, comando.c_str(), comando.length(), 0);
 
             // Recibir la respuesta del servidor
+            char buffer[1024] = {0};
             int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
             if (bytes_received > 0) {
                 cout << "Respuesta del servidor: " << buffer << endl;
@@ -133,6 +134,7 @@ int main() {
             send(client_fd, comando.c_str(), comando.length(), 0);
 
             // Recibir la respuesta del servidor
+            char buffer[1024] = {0};
             int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
             if (bytes_received > 0) {
                 cout << "Respuesta del servidor: " << buffer << endl;
@@ -142,16 +144,19 @@ int main() {
         } 
         else if (opcion == 3) {
             // Desconectar
-            string comando = "DISCONNECT";  // Enviar comando de desconexión
+            string comando = "DISCONNECT";
             send(client_fd, comando.c_str(), comando.length(), 0);
-
-            // Recibir la respuesta del servidor
+        
+            // Recibir confirmación del servidor
+            char buffer[1024] = {0};
             int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
             if (bytes_received > 0) {
                 cout << "Respuesta del servidor: " << buffer << endl;
-            } else {
-                cerr << "Error al recibir la respuesta del servidor" << endl;
             }
+        
+            cout << "Cerrando conexión..." << endl;
+            close(client_fd);
+            exit(0);
         }
         else if (opcion == 4) {
             // Salir

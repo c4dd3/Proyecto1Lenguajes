@@ -178,9 +178,20 @@ void register_user(int client_socket, const string& comando) {
         strcpy(nuevo_usuario.apellido, apellido.c_str());
         strcpy(nuevo_usuario.correo, correo.c_str());
         strcpy(nuevo_usuario.contrasena, contrasena.c_str());
-        strcpy(nuevo_usuario.ip_cliente, "0.0.0.0");  // Asignar IP por defecto
-        nuevo_usuario.conectado = false;
-        nuevo_usuario.socket_cliente = -1;
+
+        // Obtener la IP del cliente
+        struct sockaddr_in addr;
+        socklen_t addr_size = sizeof(struct sockaddr_in);
+        getpeername(client_socket, (struct sockaddr*)&addr, &addr_size);
+        string ip_cliente = inet_ntoa(addr.sin_addr);
+
+        // Guardar la IP en la estructura del usuario
+        strncpy(nuevo_usuario.ip_cliente, ip_cliente.c_str(), sizeof(nuevo_usuario.ip_cliente) - 1);
+        nuevo_usuario.ip_cliente[sizeof(nuevo_usuario.ip_cliente) - 1] = '\0';
+
+        // Estado de conexión
+        nuevo_usuario.conectado = true;
+        nuevo_usuario.socket_cliente = client_socket;
 
         // Añadir el nuevo usuario a la lista
         shared_data->lista_usuarios[shared_data->user_count] = nuevo_usuario;
@@ -189,7 +200,7 @@ void register_user(int client_socket, const string& comando) {
         // Guardar los usuarios en el archivo
         guardar_usuarios();
 
-        const char* success_msg = "Registro exitoso.\n";
+        const char* success_msg = "Registro exitoso y conexión establecida.\n";
         send(client_socket, success_msg, strlen(success_msg), 0);
     }
     sem_post(sem);  // Liberar semáforo
@@ -204,9 +215,24 @@ void login_user(int client_socket, const string& comando) {
 
     sem_wait(sem);  // Bloquear semáforo para proteger la lista de usuarios
     bool usuario_valido = false;
+
     for (int i = 0; i < shared_data->user_count; ++i) {
         if (shared_data->lista_usuarios[i].correo == correo && shared_data->lista_usuarios[i].contrasena == contrasena) {
             usuario_valido = true;
+
+            // Cambiar estado a "conectado"
+            shared_data->lista_usuarios[i].conectado = true;
+
+            // Obtener la IP del cliente
+            struct sockaddr_in addr;
+            socklen_t addr_size = sizeof(struct sockaddr_in);
+            getpeername(client_socket, (struct sockaddr*)&addr, &addr_size);
+            string ip_cliente = inet_ntoa(addr.sin_addr);
+
+            // Almacenar la IP
+            strncpy(shared_data->lista_usuarios[i].ip_cliente, ip_cliente.c_str(), sizeof(shared_data->lista_usuarios[i].ip_cliente) - 1);
+            shared_data->lista_usuarios[i].ip_cliente[sizeof(shared_data->lista_usuarios[i].ip_cliente) - 1] = '\0';
+
             break;
         }
     }
@@ -220,6 +246,34 @@ void login_user(int client_socket, const string& comando) {
     }
 
     sem_post(sem);  // Liberar semáforo
+}
+
+// Función para manejar la desconexión del usuario
+void disconnect_user(int client_socket) {
+    sem_wait(sem);  // Bloquear semáforo para proteger la lista de usuarios
+
+    bool usuario_encontrado = false;
+    for (int i = 0; i < shared_data->user_count; ++i) {
+        if (shared_data->lista_usuarios[i].socket_cliente == client_socket) {
+            // Cambiar estado de conexión
+            shared_data->lista_usuarios[i].conectado = false;
+            shared_data->lista_usuarios[i].socket_cliente = -1;
+            strcpy(shared_data->lista_usuarios[i].ip_cliente, "0.0.0.0");  // Resetear la IP
+
+            usuario_encontrado = true;
+            break;
+        }
+    }
+
+    sem_post(sem);  // Liberar semáforo
+
+    if (usuario_encontrado) {
+        const char* disconnect_msg = "Desconexión exitosa. Adiós.\n";
+        send(client_socket, disconnect_msg, strlen(disconnect_msg), 0);
+    }
+
+    close(client_socket);  // Cerrar el socket del cliente
+    exit(0);  // Terminar el proceso hijo
 }
 
 // Función para obtener la información de un usuario
@@ -264,37 +318,35 @@ void get_user_info(int client_socket, const string &comando) {
 
 // Función para manejar la conexión con un cliente
 void handle_client(int client_socket) {
-    char buffer[1024];
-    int bytes_received;
-
     // Enviar mensaje de confirmación de conexión al cliente
     const char* confirmation_msg = "Conexión establecida correctamente. Bienvenido al servidor de mensajería.\n";
     send(client_socket, confirmation_msg, strlen(confirmation_msg), 0);
 
-    while (true) {  // Bucle para recibir múltiples comandos del cliente
-        // Recibir el comando del cliente (registrarse, login, etc.)
+    // Bucle para recibir múltiples comandos del cliente
+    while (true) {
+        // Recibir el comando del cliente
+        char buffer[1024];
+        int bytes_received;
         bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+        // Manejo de errores de fallo de transmisión o desconexión inesperada del cliente
         if (bytes_received <= 0) {
             cerr << "Error al recibir el comando o cliente desconectado." << endl;
-            break;  // Salir del bucle si se desconecta o hay un error
+            break;
         }
-        buffer[bytes_received] = '\0'; // Asegurarse de que el string esté correctamente terminado
-
+        buffer[bytes_received] = '\0';
         string comando(buffer);
-
+        //---------Comandos que procesa el servidor---------//
         // Si el comando es "REGISTER"
         if (comando.substr(0, 8) == "REGISTER") {
-            register_user(client_socket, comando);  // Llamada a la función de registro
+            register_user(client_socket, comando);
         }
         // Si el comando es "LOGIN"
         else if (comando.substr(0, 5) == "LOGIN") {
-            login_user(client_socket, comando);  // Llamada a la función de login
+            login_user(client_socket, comando);
         }
         // Si el comando es "DISCONNECT"
         else if (comando.substr(0, 10) == "DISCONNECT") {
-            const char* disconnect_msg = "Desconexión exitosa. Adiós.\n";
-            send(client_socket, disconnect_msg, strlen(disconnect_msg), 0);
-            break;  // Salir del bucle y cerrar la conexión
+            disconnect_user(client_socket);
         }
         // Si es el comando "GETUSER"
         else if (comando.substr(0, 7) == "GETUSER"){
@@ -304,6 +356,7 @@ void handle_client(int client_socket) {
             const char* error_msg = "Comando no reconocido.\n";
             send(client_socket, error_msg, strlen(error_msg), 0);
         }
+        //--------------------------------------------------//
     }
 
     // Cerrar la conexión después de procesar todos los comandos
@@ -380,7 +433,7 @@ int main() {
             close(server_fd);               // El hijo ya no necesita escuchar nuevas conexiones
             handle_client(client_socket);   // Manejar la comunicación con el cliente
             shmdt(shared_data);             // Desasociar la memoria compartida
-            exit(0); // Terminar el proceso hijo después de manejar al cliente
+            exit(0);                        // Terminar el proceso hijo después de manejar al cliente
         } else if (pid > 0) {
             // Proceso padre
             close(client_socket);           // El padre no necesita manejar este cliente, solo aceptar nuevas conexiones
