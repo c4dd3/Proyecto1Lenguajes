@@ -5,6 +5,7 @@
         "fstream": "cpp",
         "xlocmes": "cpp",
         "iostream": "cpp",
-        "iosfwd": "cpp"
+        "iosfwd": "cpp",
+        "ostream": "cpp"
     }
 }

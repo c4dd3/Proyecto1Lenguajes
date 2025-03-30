@@ -260,12 +260,13 @@ int main() {
     bool server_running = true;
 
     // Función de manejo de señales (para cerrar el servidor de forma controlada)
-    auto shutdown_server = [](int signum) {
-        cout << "Recibida señal para cerrar el servidor..." << endl;
+    auto shutdown_server = [&server_running](int signum) {
+        cout << "Se recibió la señal " << signum << ". Cerrando el servidor..." << endl;
         // Llamar a la función para guardar los usuarios antes de cerrar
         guardar_usuarios();
-        server_running = false;
+        server_running = false;  // Ahora la lambda puede modificar server_running
     };
+
 
     // Capturar la señal SIGINT (Ctrl+C) para cerrar el servidor
     signal(SIGINT, shutdown_server);
