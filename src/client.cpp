@@ -294,30 +294,7 @@ void interfazInicial(int client_fd){
             disconnect(client_fd);
         }
         else if (opcion == 4) {  
-            // Agregar Contacto
-            cout << "Ingrese el correo del usuario a agregar: ";
-            cin >> correo;
-            string comando = "GETUSER " + correo;
-            send(client_fd, comando.c_str(), comando.length(), 0);
-            // Recibir la respuesta del servidor
-            char buffer[1024] = {0};
-            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-            if (bytes_received > 0) {
-                string respuesta(buffer);
-                if (respuesta.find("ERROR") != string::npos) {
-                    cout << respuesta << endl;
-                } else {
-                    istringstream ss(respuesta);
-                    string temp, nombre, apellido, correo;
-                    ss >> temp >> nombre;
-                    ss >> temp >> apellido;
-                    ss >> temp >> correo;
-                    Contacto nuevo_contacto = {nombre, apellido, correo};
-                    agregar_contacto(nuevo_contacto);
-                }
-            } else {
-                cerr << "Error al recibir la información del usuario." << endl;
-            }
+            agregar_contacto_func(client_fd);
         }
         else if (opcion == 5) {  // Mostrar Contactos
             mostrar_contactos();
