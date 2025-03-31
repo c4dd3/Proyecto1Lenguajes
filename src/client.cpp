@@ -16,10 +16,10 @@
 using namespace std;
 
 struct Usuario {
-    char nombre[50];
-    char apellido[50];
-    char correo[50];
-    char contrasena[50];
+    string nombre;
+    string apellido;
+    string correo;
+    string contrasena;
 };
 struct Usuario usuario_autenticado;
 
@@ -108,34 +108,6 @@ void agregar_contacto_func(int client_fd) {
         }
     } else {
         cerr << "Error al recibir la información del usuario." << endl;
-    }
-}
-
-// Interfaz pos-ingreso
-void interfazAutenticado(int client_fd) {
-    int opcion;
-
-    cout << "\n¡Hola, " << usuario_autenticado.nombre << "!" << endl;
-    
-    while (true) {
-        cout << "\nElija una opción: \n";
-        cout << "1. Agregar Contacto\n";
-        cout << "2. Mostrar Contactos\n";
-        cout << "3. Desconectar\n";
-        cout << "Opción: ";
-        cin >> opcion;
-        
-        if (opcion == 1) {
-            // Agregar Contacto
-            agregar_contacto_func(client_fd);
-        } else if (opcion == 2) {  // Mostrar Contactos
-            mostrar_contactos();
-        } else if (opcion == 3) {  // Desconectar
-            disconnect(client_fd);
-            break; // Salir del ciclo si se desconecta
-        } else {
-            cout << "Opción no válida. Intente nuevamente." << endl;
-        }
     }
 }
 
@@ -266,6 +238,34 @@ void disconnect(int client_fd){
     cout << "Cerrando conexión..." << endl;
     close(client_fd);
     exit(0);
+}
+
+// Interfaz pos-ingreso
+void interfazAutenticado(int client_fd) {
+    int opcion;
+
+    cout << "\n¡Hola, " << usuario_autenticado.nombre << "!" << endl;
+    
+    while (true) {
+        cout << "\nElija una opción: \n";
+        cout << "1. Agregar Contacto\n";
+        cout << "2. Mostrar Contactos\n";
+        cout << "3. Desconectar\n";
+        cout << "Opción: ";
+        cin >> opcion;
+        
+        if (opcion == 1) {
+            // Agregar Contacto
+            agregar_contacto_func(client_fd);
+        } else if (opcion == 2) {  // Mostrar Contactos
+            mostrar_contactos();
+        } else if (opcion == 3) {  // Desconectar
+            disconnect(client_fd);
+            break; // Salir del ciclo si se desconecta
+        } else {
+            cout << "Opción no válida. Intente nuevamente." << endl;
+        }
+    }
 }
 
 // Interfaz Inicial
