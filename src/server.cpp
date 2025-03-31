@@ -40,6 +40,7 @@ SharedData *shared_data;
 sem_t *sem;                 // Semáforo general para acceder a la lista de usuarios
 
 
+int server_fd;
 
 // Función para leer el archivo de configuración y obtener el puerto
 int read_config() {
@@ -93,6 +94,7 @@ void shutdown_server(int signum) {
     // Llamar a la función para guardar los usuarios antes de cerrar
     guardar_usuarios();  // Descomentarlo si deseas guardar antes de cerrar
     server_running = false;
+    close(server_fd);  
 }
 
 // Función para cargar usuarios desde el archivo
@@ -364,7 +366,7 @@ void handle_client(int client_socket) {
 
 int main() {
     // Inicialización de variables y estructuras
-    int server_fd, client_socket;
+    int client_socket;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
@@ -441,11 +443,12 @@ int main() {
 
     // Liberar los recursos al finalizar
     cout << "Cerrando servidor..." << endl;
-    close(server_fd);                       // Cerrar el socket del servidor
     shmdt(shared_data);                     // Desasociar la memoria compartida
     shmctl(shmid, IPC_RMID, nullptr);       // Liberar la memoria compartida
     sem_close(sem);                         // Cerrar el semáforo
     sem_unlink("/user_semaphore");          // Desvincular el semáforo
+
+    exit(0);
 
     return 0;
 }
