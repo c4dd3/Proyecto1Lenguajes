@@ -347,6 +347,6 @@ int startConnection(){
 }
 
 int main() {
-    startConnection()
+    startConnection();
     return 0;
 }
