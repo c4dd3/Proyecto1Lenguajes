@@ -277,8 +277,6 @@ void interfazInicial(int client_fd){
         cout << "1. Registrarse\n";
         cout << "2. Iniciar sesión\n";
         cout << "3. Desconectar\n";
-        cout << "4. Agregar Contacto\n";
-        cout << "5. Mostrar Contactos\n";
         cout << "Opción: ";
         cin >> opcion;
         if (opcion == 1) {
@@ -292,12 +290,6 @@ void interfazInicial(int client_fd){
         else if (opcion == 3) {
             // Desconectar
             disconnect(client_fd);
-        }
-        else if (opcion == 4) {  
-            agregar_contacto_func(client_fd);
-        }
-        else if (opcion == 5) {  // Mostrar Contactos
-            mostrar_contactos();
         }
         else {
             cout << "Opción no válida. Intente nuevamente." << endl;
