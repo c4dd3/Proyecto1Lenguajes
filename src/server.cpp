@@ -273,6 +273,7 @@ void disconnect_user(int client_socket) {
     }
 
     close(client_socket);  // Cerrar el socket del cliente
+    cout << "Cerrando proceso hijo" << endl;
     exit(0);  // Terminar el proceso hijo
 }
 
@@ -360,8 +361,6 @@ void handle_client(int client_socket) {
     // Cerrar la conexión después de procesar todos los comandos
     close(client_socket);
 }
-
-
 
 int main() {
     // Inicialización de variables y estructuras
