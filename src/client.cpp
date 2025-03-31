@@ -111,6 +111,49 @@ void agregar_contacto_func(int client_fd) {
     }
 }
 
+// Función para Desonectar al usuario
+void disconnect(int client_fd){
+    string comando = "DISCONNECT";
+    send(client_fd, comando.c_str(), comando.length(), 0);
+    // Recibir confirmación del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_received > 0) {
+        cout << "Respuesta del servidor: " << buffer << endl;
+    }
+    cout << "Cerrando conexión..." << endl;
+    close(client_fd);
+    exit(0);
+}
+
+// Interfaz pos-ingreso
+void interfazAutenticado(int client_fd) {
+    int opcion;
+
+    cout << "\n¡Hola, " << usuario_autenticado.nombre << "!" << endl;
+    
+    while (true) {
+        cout << "\nElija una opción: \n";
+        cout << "1. Agregar Contacto\n";
+        cout << "2. Mostrar Contactos\n";
+        cout << "3. Desconectar\n";
+        cout << "Opción: ";
+        cin >> opcion;
+        
+        if (opcion == 1) {
+            // Agregar Contacto
+            agregar_contacto_func(client_fd);
+        } else if (opcion == 2) {  // Mostrar Contactos
+            mostrar_contactos();
+        } else if (opcion == 3) {  // Desconectar
+            disconnect(client_fd);
+            break; // Salir del ciclo si se desconecta
+        } else {
+            cout << "Opción no válida. Intente nuevamente." << endl;
+        }
+    }
+}
+
 // Función para registrar nuevo usuario
 void registrarse(string nombre, string apellido, string correo, string contrasena, int client_fd){
     cout << "Ingrese su nombre: ";
@@ -225,48 +268,7 @@ void iniciarSesion(string correo, string contrasena, int client_fd) {
     }
 }
 
-// Función para Desonectar al usuario
-void disconnect(int client_fd){
-    string comando = "DISCONNECT";
-    send(client_fd, comando.c_str(), comando.length(), 0);
-    // Recibir confirmación del servidor
-    char buffer[1024] = {0};
-    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-    if (bytes_received > 0) {
-        cout << "Respuesta del servidor: " << buffer << endl;
-    }
-    cout << "Cerrando conexión..." << endl;
-    close(client_fd);
-    exit(0);
-}
 
-// Interfaz pos-ingreso
-void interfazAutenticado(int client_fd) {
-    int opcion;
-
-    cout << "\n¡Hola, " << usuario_autenticado.nombre << "!" << endl;
-    
-    while (true) {
-        cout << "\nElija una opción: \n";
-        cout << "1. Agregar Contacto\n";
-        cout << "2. Mostrar Contactos\n";
-        cout << "3. Desconectar\n";
-        cout << "Opción: ";
-        cin >> opcion;
-        
-        if (opcion == 1) {
-            // Agregar Contacto
-            agregar_contacto_func(client_fd);
-        } else if (opcion == 2) {  // Mostrar Contactos
-            mostrar_contactos();
-        } else if (opcion == 3) {  // Desconectar
-            disconnect(client_fd);
-            break; // Salir del ciclo si se desconecta
-        } else {
-            cout << "Opción no válida. Intente nuevamente." << endl;
-        }
-    }
-}
 
 // Interfaz Inicial
 void interfazInicial(int client_fd){
