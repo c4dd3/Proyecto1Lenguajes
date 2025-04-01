@@ -160,10 +160,6 @@ void interfazAutenticado(int client_fd) {
     fd_set read_fds;
     int max_fd = client_fd; // Definir el descriptor máximo
 
-    // Configurar STDIN como no bloqueante
-    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-
     cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
 
     cout << "\nElija una opción: \n";
@@ -206,31 +202,25 @@ void interfazAutenticado(int client_fd) {
             }
     
             if (opcion == 1) {
-                cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
                 agregar_contacto_func(client_fd);
             } else if (opcion == 2) {
-                cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
                 mostrar_contactos();
             } else if (opcion == 3) { // Enviar Mensaje
-                cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
                 string correo, mensaje;
                 cout << "Ingrese el correo del destinatario: ";
                 cin >> correo;
-                cin.ignore(); // Limpiar buffer
+                cin.ignore(); // Limpiar buffer de salto de línea
                 cout << "Escriba su mensaje: ";
                 getline(cin, mensaje); // Leer mensaje completo
                 enviarMensaje(client_fd, correo, mensaje);
             } else if (opcion == 4) { // Desconectar
-                cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
                 disconnect(client_fd);
                 break; // Salir del ciclo si se desconecta
             } else {
                 cout << "Opción no válida. Intente nuevamente." << endl;
             }
+
+            // Limpiar la consola para la siguiente interacción
             system("clear");
             cout << "\nElija una opción: \n";
             cout << "1. Agregar Contacto\n";
@@ -238,13 +228,12 @@ void interfazAutenticado(int client_fd) {
             cout << "3. Enviar Mensaje\n";
             cout << "4. Desconectar\n";
             cout << "Opción: ";
-            cout.flush(); // Asegura que se imprima inmediatamente
+            cout.flush();
         }
-    
-        // PAUSA PARA REDUCIR CONSUMO DE CPU (100 MILISEGUNDOS)
         usleep(100000);  // 100 ms
     }
 }
+
 
 // Función para registrar nuevo usuario
 void registrarse(string nombre, string apellido, string correo, string contrasena, int client_fd){
