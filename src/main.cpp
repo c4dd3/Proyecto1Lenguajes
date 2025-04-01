@@ -96,6 +96,64 @@ void registrarse(string nombre, string apellido, string correo, string contrasen
     }
 }
 
+// Funcion para iniciar sesion de un usuario
+void iniciarSesion(string correo, string contrasena, int client_fd) {
+
+    string comando = "LOGIN " + correo + " " + contrasena;
+    // Enviar el comando al servidor
+    send(client_fd, comando.c_str(), comando.length(), 0);
+
+    // Recibir la respuesta del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_received > 0) {
+        string respuesta(buffer);
+        cout << "Respuesta del servidor: " << respuesta << endl;
+        
+        // Si el inicio de sesión fue exitoso
+        if (respuesta.find("Login exitoso") != string::npos) {
+            // Ahora obtenemos los datos del usuario autenticado
+            string comando_getuser = "GETUSER " + correo;
+            send(client_fd, comando_getuser.c_str(), comando_getuser.length(), 0);
+
+            // Recibir la respuesta del servidor
+            bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+            if (bytes_received > 0) {
+                string respuesta_usuario(buffer);
+                if (respuesta_usuario.find("ERROR") == string::npos) {
+                    // Parsear la respuesta del servidor
+                    istringstream ss(respuesta_usuario);
+                    string temp, nombre, apellido, correo;
+                    ss >> temp >> nombre;     // Ignorar "User"
+                    ss >> temp >> apellido;   // Ignorar "Apellido"
+                    ss >> temp >> correo;     // Ignorar "Correo"
+                    
+                    // Guardar la información en la variable global usuario_autenticado
+                    usuario_autenticado.nombre = nombre;
+                    usuario_autenticado.apellido = apellido;
+                    usuario_autenticado.correo = correo;
+                    usuario_autenticado.contrasena = contrasena;
+
+                    cout << "Datos de usuario guardados correctamente." << endl;
+                    // Ahora que ya tenemos la información, podemos ir a la interfaz autenticada
+                    
+                    cout << "Usuario autenticado: " << usuario_autenticado.nombre << endl;
+                    cout << "Usuario autenticado: " << usuario_autenticado.apellido << endl;
+                    cout << "Usuario autenticado: " << usuario_autenticado.correo << endl;
+                    cout << "Usuario autenticado: " << usuario_autenticado.contrasena << endl;
+                    cout << "Proceso de Login exitoso...";
+                    // interfazAutenticado(client_fd);
+                } else {
+                    cout << "Error al obtener la información del usuario." << endl;
+                }
+            } else {
+                cerr << "Error al recibir la información del usuario." << endl;
+            }
+        }
+    } else {
+        cerr << "Error al recibir la respuesta del servidor" << endl;
+    }
+}
 // Ventana de Registro
 
 class RegisterWindow : public Gtk::Window {
@@ -239,47 +297,14 @@ class LoginWindow : public Gtk::Window {
         Gtk::Button btn_login, btn_register;
         int client_fd;  // Almacenar client_fd
     
-        // Función para verificar credenciales en users.txt
-        bool validar_credenciales(const string& correo, const string& contrasena) {
-            ifstream archivo("users.txt");
-            if (!archivo) {
-                cerr << "Error: No se pudo abrir users.txt" << endl;
-                return false;
-            }
-    
-            string linea;
-            while (getline(archivo, linea)) {
-                istringstream ss(linea);
-                vector<string> datos;
-                string dato;
-                while (ss >> dato) {
-                    datos.push_back(dato);
-                }
-    
-                if (datos.size() >= 4) {  // Asegurar que haya suficientes campos
-                    if (datos[2] == correo && datos[3] == contrasena) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-    
         // Función que maneja el inicio de sesión
         void on_login_clicked() {
             string user = entry_user.get_text();
             string password = entry_password.get_text();
     
-            if (validar_credenciales(user, password)) {
-                Gtk::MessageDialog dialog(*this, "Inicio de sesión exitoso", false, Gtk::MESSAGE_INFO);
-                cout << "Inicio de sesión exitoso" << endl;
-                cout << "Usuario: " << user << " | Contraseña: " << password << endl;
-                dialog.run();
-            } else {
-                Gtk::MessageDialog dialog(*this, "Correo o contraseña incorrectos", false, Gtk::MESSAGE_ERROR);
-                cout << "Correo o contraseña incorrectos" << endl;
-                dialog.run();
-            }
+            cout << "antes de iniciar sesion" << endl;
+            iniciarSesion(user, password, client_fd);
+
         }
     
         // Función que maneja el registro de un nuevo usuario
@@ -321,6 +346,15 @@ int startConnection(int argc, char* argv[]) {
 
     cout << "Conectado al servidor!" << endl;
 
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_received > 0) {
+        cout << "Respuesta del servidor: " << buffer << endl;
+    } else {
+
+        cerr << "Error al recibir la respuesta del servidor" << endl;
+    }
+    
     // Usar Gtk::Application
     auto app = Gtk::Application::create(argc, argv, "com.example.login");
     LoginWindow loginWindow(client_fd);  // Pasa client_fd a la ventana de login
