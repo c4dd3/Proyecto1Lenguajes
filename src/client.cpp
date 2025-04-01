@@ -135,7 +135,7 @@ void recibirMensajes(int client_fd){
     int bytes_recibidos = recv(client_fd, buffer, sizeof(buffer), 0);
     if (bytes_recibidos <= 0) {
         cerr << "Conexion cerrada por el servidor" << endl;
-        break;
+        exit(-1);
     }
     buffer[bytes_recibidos] = '\0';
     cout << "Mensaje recibido: " << buffer << endl;
