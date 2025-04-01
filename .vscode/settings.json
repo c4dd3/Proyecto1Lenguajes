@@ -10,6 +10,7 @@
         "sstream": "cpp",
         "xutility": "cpp",
         "cstring": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "string": "cpp"
     }
 }

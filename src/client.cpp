@@ -186,30 +186,31 @@ void interfazAutenticado(int client_fd) {
         }
     
         if (FD_ISSET(STDIN_FILENO, &read_fds)) {
-            char buffer[256];
-            ssize_t bytesRead = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);
-            if (bytesRead > 0) {
-                buffer[bytesRead] = '\0'; // Null-terminate la cadena
-                opcion = atoi(buffer); // Convertir la entrada a número
-    
-                if (opcion == 1) {
-                    agregar_contacto_func(client_fd);
-                } else if (opcion == 2) {
-                    mostrar_contactos();
-                } else if (opcion == 3) { // Enviar Mensaje
-                    string correo, mensaje;
-                    cout << "Ingrese el correo del destinatario: ";
-                    cin >> correo;
-                    cin.ignore(); // Limpiar buffer
-                    cout << "Escriba su mensaje: ";
-                    getline(cin, mensaje); // Leer mensaje completo
-                    enviarMensaje(client_fd, correo, mensaje);
-                } else if (opcion == 4) { // Desconectar
-                    disconnect(client_fd);
-                    break; // Salir del ciclo si se desconecta
-                } else {
-                    cout << "Opción no válida. Intente nuevamente." << endl;
-                }
+            string input;
+            getline(cin, input); // Leer toda la línea de entrada
+        
+            if (input.empty()) {
+                continue;
+            }
+        
+            opcion = atoi(input.c_str()); // Convertir la entrada a número
+        
+            if (opcion == 1) {
+                agregar_contacto_func(client_fd);
+            } else if (opcion == 2) {
+                mostrar_contactos();
+            } else if (opcion == 3) { // Enviar Mensaje
+                string correo, mensaje;
+                cout << "Ingrese el correo del destinatario: ";
+                getline(cin, correo); // Ahora usamos getline para evitar problemas con cin
+                cout << "Escriba su mensaje: ";
+                getline(cin, mensaje); // Leer mensaje completo
+                enviarMensaje(client_fd, correo, mensaje);
+            } else if (opcion == 4) { // Desconectar
+                disconnect(client_fd);
+                break; // Salir del ciclo si se desconecta
+            } else {
+                cout << "Opción no válida. Intente nuevamente." << endl;
             }
         }
     }
