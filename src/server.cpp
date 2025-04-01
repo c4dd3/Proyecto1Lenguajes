@@ -333,6 +333,7 @@ void procesarMensaje(int client_socket, const string& comando) {
     string mensaje = comando.substr(segundo_espacio + 1);
 
     cout << "Mensaje recibido para " << correo_destino << ": " << mensaje << endl;
+    cout << "Intentando enviar mensaje..." << endl;
 
     // Buscar el correo del emisor
     string correo_emisor = ""; // Variable para el correo del emisor
@@ -367,12 +368,14 @@ void procesarMensaje(int client_socket, const string& comando) {
     }
 
     if (!encontrado) {
+        cout << "Usuario no encontrado." << endl;
         const char* error_msg = "Usuario no encontrado.\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
         return;
     }
 
     if (destinatario_socket == -1) {
+        cout << "El usuario está desconectado." << endl;
         const char* offline_msg = "El usuario está desconectado.\n";
         send(client_socket, offline_msg, strlen(offline_msg), 0);
         return;
@@ -380,16 +383,13 @@ void procesarMensaje(int client_socket, const string& comando) {
     // Mensaje de confirmación
     const char* success_msg = "Mensaje enviado correctamente.\n";
     send(client_socket, success_msg, strlen(success_msg), 0);
-    sleep(100000);
-    // Construir el mensaje final, ahora usando el correo del emisor en lugar de su socket
-    string mensaje_final = "Mensaje de " + correo_emisor + ": " + mensaje + "\n";
 
+    string mensaje_final = "Mensaje de " + correo_emisor + ": " + mensaje + "\n";
+    cout << "Enviando" << endl;
     // Enviar el mensaje al destinatario con control de concurrencia
     sem_wait(sem_destinatario); // Bloquear el semáforo del destinatario
     send(destinatario_socket, mensaje_final.c_str(), mensaje_final.length(), 0);
     sem_post(sem_destinatario); // Liberar el semáforo
-
-    
 }
 
 

@@ -215,6 +215,7 @@ void interfazAutenticado(int client_fd) {
     
         if (FD_ISSET(client_fd, &read_fds)) {
             // Recibir mensaje del servidor si hay mensajes nuevos
+            cout << "Intentando recibir mensaje" << endl;
             recibirMensajes(client_fd);
         }
     
