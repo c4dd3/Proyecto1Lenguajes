@@ -137,12 +137,13 @@ void iniciarSesion(string correo, string contrasena, int client_fd) {
                     cout << "Datos de usuario guardados correctamente." << endl;
                     // Ahora que ya tenemos la información, podemos ir a la interfaz autenticada
                     
+                    // Aqui hayq eu llamar a la interfaz de inicio...
                     cout << "Usuario autenticado: " << usuario_autenticado.nombre << endl;
                     cout << "Usuario autenticado: " << usuario_autenticado.apellido << endl;
                     cout << "Usuario autenticado: " << usuario_autenticado.correo << endl;
                     cout << "Usuario autenticado: " << usuario_autenticado.contrasena << endl;
-                    cout << "Proceso de Login exitoso...";
-                    // interfazAutenticado(client_fd);
+                    cout << "Proceso de Login exitoso..." << endl;
+                    //interfazAutenticado(client_fd);
                 } else {
                     cout << "Error al obtener la información del usuario." << endl;
                 }
@@ -354,7 +355,7 @@ int startConnection(int argc, char* argv[]) {
 
         cerr << "Error al recibir la respuesta del servidor" << endl;
     }
-    
+
     // Usar Gtk::Application
     auto app = Gtk::Application::create(argc, argv, "com.example.login");
     LoginWindow loginWindow(client_fd);  // Pasa client_fd a la ventana de login
