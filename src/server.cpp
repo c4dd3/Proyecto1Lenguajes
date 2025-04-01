@@ -318,7 +318,7 @@ void get_user_info(int client_socket, const string &comando) {
 }
 
 // Función para recibir y enviar mensajes // TODO
-void procesarMensaje(int client_socket, const string& comando, SharedData* shared_data) {
+void procesarMensaje(int client_socket, const string& comando) {
     // El comando esperado es "MSG <correo> <mensaje>"
     size_t primer_espacio = comando.find(' ');
     size_t segundo_espacio = comando.find(' ', primer_espacio + 1);
