@@ -384,6 +384,7 @@ void procesarMensaje(int client_socket, const string& comando) {
     const char* success_msg = "Mensaje enviado correctamente.\n";
     send(client_socket, success_msg, strlen(success_msg), 0);
 
+    cout << "Socket Emisor:" << correo_emisor <<" | Socket Receptor:" << destinatario_socket << endl;
     string mensaje_final = "Mensaje de " + correo_emisor + ": " + mensaje + "\n";
     cout << "Enviando" << endl;
     // Enviar el mensaje al destinatario con control de concurrencia
@@ -391,8 +392,6 @@ void procesarMensaje(int client_socket, const string& comando) {
     send(destinatario_socket, mensaje_final.c_str(), mensaje_final.length(), 0);
     sem_post(sem_destinatario); // Liberar el semáforo
 }
-
-
 
 // Función para manejar la conexión con un cliente
 void handle_client(int client_socket) {

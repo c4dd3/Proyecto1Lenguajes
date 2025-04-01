@@ -174,7 +174,7 @@ void enviarMensaje(int client_fd, const string& correo_destino, const string& me
         return;
     }
 
-    cout << "Intentar enviar mensaje a " << correo_destino << endl;
+    cout << "Intentando enviar mensaje a " << correo_destino << endl;
 
     // Recibir respuesta del servidor
     char buffer[1024] = {0};
@@ -215,7 +215,7 @@ void interfazAutenticado(int client_fd) {
     
         if (FD_ISSET(client_fd, &read_fds)) {
             // Recibir mensaje del servidor si hay mensajes nuevos
-            cout << "Intentando recibir mensaje" << endl;
+            cout << "\nIntentando recibir mensaje" << endl;
             recibirMensajes(client_fd);
         }
     
