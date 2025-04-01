@@ -14,6 +14,7 @@
 #include <sstream>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <limits>
 
 
 using namespace std;
@@ -170,6 +171,9 @@ void interfazAutenticado(int client_fd) {
         FD_SET(client_fd, &read_fds); // Monitorear el socket
         FD_SET(STDIN_FILENO, &read_fds); // Monitorear entrada del usuario
     
+        // LIMPIAR CONSOLA EN LINUX
+        system("clear");
+    
         cout << "\nElija una opción: \n";
         cout << "1. Agregar Contacto\n";
         cout << "2. Mostrar Contactos\n";
@@ -187,14 +191,23 @@ void interfazAutenticado(int client_fd) {
     
         if (FD_ISSET(STDIN_FILENO, &read_fds)) {
             string input;
-            getline(cin, input); // Leer toda la línea de entrada
-        
+            getline(cin, input); // Leer la línea completa del usuario
+    
             if (input.empty()) {
+                continue; // Evita procesar entradas vacías
+            }
+    
+            stringstream ss(input);
+            int opcion;
+            ss >> opcion;
+    
+            if (ss.fail()) {  // Si la conversión falló, limpiar cin
+                cout << "Entrada no válida. Intente nuevamente." << endl;
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
                 continue;
             }
-        
-            opcion = atoi(input.c_str()); // Convertir la entrada a número
-        
+    
             if (opcion == 1) {
                 agregar_contacto_func(client_fd);
             } else if (opcion == 2) {
@@ -202,7 +215,8 @@ void interfazAutenticado(int client_fd) {
             } else if (opcion == 3) { // Enviar Mensaje
                 string correo, mensaje;
                 cout << "Ingrese el correo del destinatario: ";
-                getline(cin, correo); // Ahora usamos getline para evitar problemas con cin
+                cin >> correo;
+                cin.ignore(); // Limpiar buffer
                 cout << "Escriba su mensaje: ";
                 getline(cin, mensaje); // Leer mensaje completo
                 enviarMensaje(client_fd, correo, mensaje);
@@ -213,6 +227,9 @@ void interfazAutenticado(int client_fd) {
                 cout << "Opción no válida. Intente nuevamente." << endl;
             }
         }
+    
+        // PAUSA PARA REDUCIR CONSUMO DE CPU (100 MILISEGUNDOS)
+        usleep(100000);  // 100 ms
     }
 }
 
