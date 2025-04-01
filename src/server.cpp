@@ -377,7 +377,10 @@ void procesarMensaje(int client_socket, const string& comando) {
         send(client_socket, offline_msg, strlen(offline_msg), 0);
         return;
     }
-
+    // Mensaje de confirmación
+    const char* success_msg = "Mensaje enviado correctamente.\n";
+    send(client_socket, success_msg, strlen(success_msg), 0);
+    sleep(100000);
     // Construir el mensaje final, ahora usando el correo del emisor en lugar de su socket
     string mensaje_final = "Mensaje de " + correo_emisor + ": " + mensaje + "\n";
 
@@ -386,8 +389,7 @@ void procesarMensaje(int client_socket, const string& comando) {
     send(destinatario_socket, mensaje_final.c_str(), mensaje_final.length(), 0);
     sem_post(sem_destinatario); // Liberar el semáforo
 
-    const char* success_msg = "Mensaje enviado correctamente.\n";
-    send(client_socket, success_msg, strlen(success_msg), 0);
+    
 }
 
 
