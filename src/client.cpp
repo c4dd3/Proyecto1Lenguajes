@@ -166,22 +166,19 @@ void interfazAutenticado(int client_fd) {
 
     cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
 
+    cout << "\nElija una opción: \n";
+    cout << "1. Agregar Contacto\n";
+    cout << "2. Mostrar Contactos\n";
+    cout << "3. Enviar Mensaje\n";
+    cout << "4. Desconectar\n";
+    cout << "Opción: ";
+    cout.flush(); // Asegura que se imprima inmediatamente
+    
     while (true) {
         FD_ZERO(&read_fds);
         FD_SET(client_fd, &read_fds); // Monitorear el socket
         FD_SET(STDIN_FILENO, &read_fds); // Monitorear entrada del usuario
-    
-        // LIMPIAR CONSOLA EN LINUX
-        system("clear");
-    
-        cout << "\nElija una opción: \n";
-        cout << "1. Agregar Contacto\n";
-        cout << "2. Mostrar Contactos\n";
-        cout << "3. Enviar Mensaje\n";
-        cout << "4. Desconectar\n";
-        cout << "Opción: ";
-        cout.flush(); // Asegura que se imprima inmediatamente
-    
+        
         select(max_fd + 1, &read_fds, NULL, NULL, NULL); // Esperar eventos
     
         if (FD_ISSET(client_fd, &read_fds)) {
@@ -192,7 +189,7 @@ void interfazAutenticado(int client_fd) {
         if (FD_ISSET(STDIN_FILENO, &read_fds)) {
             string input;
             getline(cin, input); // Leer la línea completa del usuario
-    
+
             if (input.empty()) {
                 continue; // Evita procesar entradas vacías
             }
@@ -209,10 +206,16 @@ void interfazAutenticado(int client_fd) {
             }
     
             if (opcion == 1) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
                 agregar_contacto_func(client_fd);
             } else if (opcion == 2) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
                 mostrar_contactos();
             } else if (opcion == 3) { // Enviar Mensaje
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
                 string correo, mensaje;
                 cout << "Ingrese el correo del destinatario: ";
                 cin >> correo;
@@ -221,11 +224,21 @@ void interfazAutenticado(int client_fd) {
                 getline(cin, mensaje); // Leer mensaje completo
                 enviarMensaje(client_fd, correo, mensaje);
             } else if (opcion == 4) { // Desconectar
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
                 disconnect(client_fd);
                 break; // Salir del ciclo si se desconecta
             } else {
                 cout << "Opción no válida. Intente nuevamente." << endl;
             }
+            system("clear");
+            cout << "\nElija una opción: \n";
+            cout << "1. Agregar Contacto\n";
+            cout << "2. Mostrar Contactos\n";
+            cout << "3. Enviar Mensaje\n";
+            cout << "4. Desconectar\n";
+            cout << "Opción: ";
+            cout.flush(); // Asegura que se imprima inmediatamente
         }
     
         // PAUSA PARA REDUCIR CONSUMO DE CPU (100 MILISEGUNDOS)
