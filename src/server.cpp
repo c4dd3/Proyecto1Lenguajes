@@ -500,7 +500,7 @@ int main() {
         }
 
         // Mostrar la IP del cliente
-        cout << "Conexión aceptada desde IP: " << inet_ntoa(client_addr.sin_addr) << endl;
+        cout << "Conexión aceptada desde IP: " << inet_ntoa(client_addr.sin_addr) << "Con Socket:" << client_socket << endl;
 
         // Crear un proceso hijo para manejar este cliente
         pid_t pid = fork();
