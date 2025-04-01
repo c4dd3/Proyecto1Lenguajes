@@ -8,6 +8,8 @@
         "iosfwd": "cpp",
         "ostream": "cpp",
         "sstream": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "cstring": "cpp",
+        "vector": "cpp"
     }
 }

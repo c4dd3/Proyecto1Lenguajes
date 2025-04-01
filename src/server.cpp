@@ -317,6 +317,28 @@ void get_user_info(int client_socket, const string &comando) {
     }
 }
 
+// Función para recibir y enviar mensajes // TODO
+void procesarMensaje(int client_socket, const string& comando) {
+    // El comando esperado es "MSG correo mensaje"
+    size_t primer_espacio = comando.find(' ');
+    size_t segundo_espacio = comando.find(' ', primer_espacio + 1);
+
+    if (primer_espacio == string::npos || segundo_espacio == string::npos) {
+        const char* error_msg = "Formato de mensaje incorrecto. Use: MSG <correo> <mensaje>\n";
+        send(client_socket, error_msg, strlen(error_msg), 0);
+        return;
+    }
+
+    string correo = comando.substr(primer_espacio + 1, segundo_espacio - primer_espacio - 1);
+    string mensaje = comando.substr(segundo_espacio + 1);
+
+    cout << "Mensaje recibido de " << correo << ": " << mensaje << endl;
+
+    const char* success_msg = "Mensaje recibido correctamente.\n";
+    send(client_socket, success_msg, strlen(success_msg), 0);
+}
+
+
 // Función para manejar la conexión con un cliente
 void handle_client(int client_socket) {
     // Enviar mensaje de confirmación de conexión al cliente
@@ -352,8 +374,10 @@ void handle_client(int client_socket) {
         // Si es el comando "GETUSER"
         else if (comando.substr(0, 7) == "GETUSER"){
             get_user_info(client_socket, comando);
-        }
-        else {
+        } 
+        else if (comando.substr(0, 3) == "MSG") {
+            procesarMensaje(client_socket, comando);
+        } else {
             const char* error_msg = "Comando no reconocido.\n";
             send(client_socket, error_msg, strlen(error_msg), 0);
         }

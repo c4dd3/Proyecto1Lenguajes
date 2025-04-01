@@ -12,6 +12,9 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <sstream>
+#include <sys/types.h>
+#include <sys/time.h>
+
 
 using namespace std;
 
@@ -126,30 +129,88 @@ void disconnect(int client_fd){
     exit(0);
 }
 
+// Función para Recibir mensajes desde el servidor
+void recibirMensajes(int client_fd){
+    char buffer[1024];
+    int bytes_recibidos = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_recibidos <= 0) {
+        cerr << "Conexion cerrada por el servidor" << endl;
+        break;
+    }
+    buffer[bytes_recibidos] = '\0';
+    cout << "Mensaje recibido: " << buffer << endl;
+}
+
+// Función para enviar mensajes al servidor
+void enviarMensaje(int client_fd, const string& correo_destino, const string& mensaje) {
+    string comando = "SEND " + correo_destino + " " + mensaje;
+    
+    // Enviar el comando al servidor
+    if (send(client_fd, comando.c_str(), comando.length(), 0) == -1) {
+        cerr << "Error al enviar el mensaje." << endl;
+    } else {
+        cout << "Mensaje enviado a " << correo_destino << " correctamente." << endl;
+    }
+}
+
 // Interfaz pos-ingreso
 void interfazAutenticado(int client_fd) {
     int opcion;
+    fd_set read_fds;
+    int max_fd = client_fd; // Definir el descriptor máximo
 
-    cout << "\n¡Hola, " << usuario_autenticado.nombre << "!" << endl;
-    
+    // Configurar STDIN como no bloqueante
+    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+
+    cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
+
     while (true) {
+        FD_ZERO(&read_fds);
+        FD_SET(client_fd, &read_fds); // Monitorear el socket
+        FD_SET(STDIN_FILENO, &read_fds); // Monitorear entrada del usuario
+    
         cout << "\nElija una opción: \n";
         cout << "1. Agregar Contacto\n";
         cout << "2. Mostrar Contactos\n";
-        cout << "3. Desconectar\n";
+        cout << "3. Enviar Mensaje\n";
+        cout << "4. Desconectar\n";
         cout << "Opción: ";
-        cin >> opcion;
-        
-        if (opcion == 1) {
-            // Agregar Contacto
-            agregar_contacto_func(client_fd);
-        } else if (opcion == 2) {  // Mostrar Contactos
-            mostrar_contactos();
-        } else if (opcion == 3) {  // Desconectar
-            disconnect(client_fd);
-            break; // Salir del ciclo si se desconecta
-        } else {
-            cout << "Opción no válida. Intente nuevamente." << endl;
+        cout.flush(); // Asegura que se imprima inmediatamente
+    
+        select(max_fd + 1, &read_fds, NULL, NULL, NULL); // Esperar eventos
+    
+        if (FD_ISSET(client_fd, &read_fds)) {
+            // Recibir mensaje del servidor si hay mensajes nuevos
+            recibirMensajes(client_fd);
+        }
+    
+        if (FD_ISSET(STDIN_FILENO, &read_fds)) {
+            char buffer[256];
+            ssize_t bytesRead = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);
+            if (bytesRead > 0) {
+                buffer[bytesRead] = '\0'; // Null-terminate la cadena
+                opcion = atoi(buffer); // Convertir la entrada a número
+    
+                if (opcion == 1) {
+                    agregar_contacto_func(client_fd);
+                } else if (opcion == 2) {
+                    mostrar_contactos();
+                } else if (opcion == 3) { // Enviar Mensaje
+                    string correo, mensaje;
+                    cout << "Ingrese el correo del destinatario: ";
+                    cin >> correo;
+                    cin.ignore(); // Limpiar buffer
+                    cout << "Escriba su mensaje: ";
+                    getline(cin, mensaje); // Leer mensaje completo
+                    enviarMensaje(client_fd, correo, mensaje);
+                } else if (opcion == 4) { // Desconectar
+                    disconnect(client_fd);
+                    break; // Salir del ciclo si se desconecta
+                } else {
+                    cout << "Opción no válida. Intente nuevamente." << endl;
+                }
+            }
         }
     }
 }
@@ -267,8 +328,6 @@ void iniciarSesion(string correo, string contrasena, int client_fd) {
         cerr << "Error al recibir la respuesta del servidor" << endl;
     }
 }
-
-
 
 // Interfaz Inicial
 void interfazInicial(int client_fd){
