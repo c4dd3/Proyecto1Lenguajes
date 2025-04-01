@@ -224,7 +224,7 @@ void login_user(int client_socket, const string& comando) {
 
             // Cambiar estado a "conectado"
             shared_data->lista_usuarios[i].conectado = true;
-
+            shared_data->lista_usuarios[i].socket_cliente = client_socket;
             // Obtener la IP del cliente
             struct sockaddr_in addr;
             socklen_t addr_size = sizeof(struct sockaddr_in);
@@ -318,25 +318,78 @@ void get_user_info(int client_socket, const string &comando) {
 }
 
 // Función para recibir y enviar mensajes // TODO
-void procesarMensaje(int client_socket, const string& comando) {
-    // El comando esperado es "MSG correo mensaje"
+void procesarMensaje(int client_socket, const string& comando, SharedData* shared_data) {
+    // El comando esperado es "MSG <correo> <mensaje>"
     size_t primer_espacio = comando.find(' ');
     size_t segundo_espacio = comando.find(' ', primer_espacio + 1);
 
     if (primer_espacio == string::npos || segundo_espacio == string::npos) {
-        const char* error_msg = "Formato de mensaje incorrecto. Use: MSG <correo> <mensaje>\n";
+        const char* error_msg = "Formato incorrecto. Use: MSG <correo> <mensaje>\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
         return;
     }
 
-    string correo = comando.substr(primer_espacio + 1, segundo_espacio - primer_espacio - 1);
+    string correo_destino = comando.substr(primer_espacio + 1, segundo_espacio - primer_espacio - 1);
     string mensaje = comando.substr(segundo_espacio + 1);
 
-    cout << "Mensaje recibido de " << correo << ": " << mensaje << endl;
+    cout << "Mensaje recibido para " << correo_destino << ": " << mensaje << endl;
 
-    const char* success_msg = "Mensaje recibido correctamente.\n";
+    // Buscar el correo del emisor
+    string correo_emisor = ""; // Variable para el correo del emisor
+    for (int i = 0; i < shared_data->user_count; ++i) {
+        if (shared_data->lista_usuarios[i].socket_cliente == client_socket) {
+            correo_emisor = shared_data->lista_usuarios[i].correo;
+            break;
+        }
+    }
+
+    // Si no se encuentra el emisor, terminamos el procesamiento
+    if (correo_emisor.empty()) {
+        const char* error_msg = "No se encontró el correo del emisor.\n";
+        send(client_socket, error_msg, strlen(error_msg), 0);
+        return;
+    }
+
+    // Buscar el usuario en la lista compartida
+    int destinatario_socket = -1;
+    sem_t* sem_destinatario = nullptr;
+    bool encontrado = false;
+
+    for (int i = 0; i < shared_data->user_count; ++i) {
+        if (correo_destino == shared_data->lista_usuarios[i].correo) {
+            encontrado = true;
+            if (shared_data->lista_usuarios[i].conectado) {
+                destinatario_socket = shared_data->lista_usuarios[i].socket_cliente;
+                sem_destinatario = shared_data->lista_usuarios[i].sem_socket;
+            }
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        const char* error_msg = "Usuario no encontrado.\n";
+        send(client_socket, error_msg, strlen(error_msg), 0);
+        return;
+    }
+
+    if (destinatario_socket == -1) {
+        const char* offline_msg = "El usuario está desconectado.\n";
+        send(client_socket, offline_msg, strlen(offline_msg), 0);
+        return;
+    }
+
+    // Construir el mensaje final, ahora usando el correo del emisor en lugar de su socket
+    string mensaje_final = "Mensaje de " + correo_emisor + ": " + mensaje + "\n";
+
+    // Enviar el mensaje al destinatario con control de concurrencia
+    sem_wait(sem_destinatario); // Bloquear el semáforo del destinatario
+    send(destinatario_socket, mensaje_final.c_str(), mensaje_final.length(), 0);
+    sem_post(sem_destinatario); // Liberar el semáforo
+
+    const char* success_msg = "Mensaje enviado correctamente.\n";
     send(client_socket, success_msg, strlen(success_msg), 0);
 }
+
 
 
 // Función para manejar la conexión con un cliente

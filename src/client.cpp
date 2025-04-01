@@ -131,16 +131,24 @@ void disconnect(int client_fd){
 }
 
 // Función para Recibir mensajes desde el servidor
-void recibirMensajes(int client_fd){
+void recibirMensajes(int client_fd) {
     char buffer[1024];
     int bytes_recibidos = recv(client_fd, buffer, sizeof(buffer), 0);
+    
+    // Verificar si se recibió algún dato
     if (bytes_recibidos <= 0) {
-        cerr << "Conexion cerrada por el servidor" << endl;
-        exit(-1);
+        if (bytes_recibidos == 0) {
+            cout << "El servidor cerró la conexión." << endl;
+        } else {
+            cerr << "Error al recibir mensaje. Código de error: " << errno << endl;
+        }
+        exit(-1); // Termina la conexión si no se recibe respuesta
     }
-    buffer[bytes_recibidos] = '\0';
+
+    buffer[bytes_recibidos] = '\0'; // Asegura que la cadena esté bien terminada
     cout << "Mensaje recibido: " << buffer << endl;
 }
+
 
 // Función para enviar mensajes al servidor
 void enviarMensaje(int client_fd, const string& correo_destino, const string& mensaje) {
@@ -149,8 +157,20 @@ void enviarMensaje(int client_fd, const string& correo_destino, const string& me
     // Enviar el comando al servidor
     if (send(client_fd, comando.c_str(), comando.length(), 0) == -1) {
         cerr << "Error al enviar el mensaje." << endl;
+        return;
+    } 
+
+    cout << "Mensaje enviado a " << correo_destino << " correctamente." << endl;
+
+    // Recibir respuesta del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+
+    if (bytes_received > 0) {
+        buffer[bytes_received] = '\0';  // Asegurar que sea una cadena válida
+        cout << "Respuesta del servidor: " << buffer << endl;
     } else {
-        cout << "Mensaje enviado a " << correo_destino << " correctamente." << endl;
+        cerr << "No se recibió confirmación del servidor." << endl;
     }
 }
 
