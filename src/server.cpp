@@ -384,7 +384,7 @@ void procesarMensaje(int client_socket, const string& comando) {
     const char* success_msg = "Mensaje enviado correctamente.\n";
     send(client_socket, success_msg, strlen(success_msg), 0);
 
-    cout << "Socket Emisor:" << correo_emisor <<" | Socket Receptor:" << destinatario_socket << endl;
+    cout << "Socket Emisor:" << client_socket <<" | Socket Receptor:" << destinatario_socket << endl;
     string mensaje_final = "Mensaje de " + correo_emisor + ": " + mensaje + "\n";
     cout << "Enviando" << endl;
     // Enviar el mensaje al destinatario con control de concurrencia
