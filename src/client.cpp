@@ -144,7 +144,7 @@ void recibirMensajes(int client_fd){
 
 // Función para enviar mensajes al servidor
 void enviarMensaje(int client_fd, const string& correo_destino, const string& mensaje) {
-    string comando = "SEND " + correo_destino + " " + mensaje;
+    string comando = "MSG " + correo_destino + " " + mensaje;
     
     // Enviar el comando al servidor
     if (send(client_fd, comando.c_str(), comando.length(), 0) == -1) {
