@@ -146,21 +146,35 @@ void recibirMensajes(int client_fd) {
     }
 
     buffer[bytes_recibidos] = '\0'; // Asegura que la cadena esté bien terminada
-    cout << "Mensaje recibido: " << buffer << endl;
+
+    // Separar el mensaje en correo y contenido
+    string mensaje_completo(buffer);
+    size_t primer_espacio = mensaje_completo.find(':');
+    
+    if (primer_espacio != string::npos) {
+        string correo_emisor = mensaje_completo.substr(0, primer_espacio); // Correo del emisor
+        string mensaje = mensaje_completo.substr(primer_espacio + 2); // Mensaje (se omite el espacio después del ':')
+        
+        // Imprimir el correo y el mensaje por separado
+        cout << "Mensaje de " << correo_emisor << ": " << mensaje << endl;
+    } else {
+        cout << "Formato del mensaje recibido incorrecto." << endl;
+    }
 }
+
 
 
 // Función para enviar mensajes al servidor
 void enviarMensaje(int client_fd, const string& correo_destino, const string& mensaje) {
     string comando = "MSG " + correo_destino + " " + mensaje;
-    
+
     // Enviar el comando al servidor
     if (send(client_fd, comando.c_str(), comando.length(), 0) == -1) {
         cerr << "Error al enviar el mensaje." << endl;
         return;
-    } 
+    }
 
-    cout << "Mensaje enviado a " << correo_destino << " correctamente." << endl;
+    cout << "Intentar enviar mensaje a " << correo_destino << endl;
 
     // Recibir respuesta del servidor
     char buffer[1024] = {0};
@@ -169,8 +183,10 @@ void enviarMensaje(int client_fd, const string& correo_destino, const string& me
     if (bytes_received > 0) {
         buffer[bytes_received] = '\0';  // Asegurar que sea una cadena válida
         cout << "Respuesta del servidor: " << buffer << endl;
+    } else if (bytes_received == 0) {
+        cout << "El servidor cerró la conexión." << endl;
     } else {
-        cerr << "No se recibió confirmación del servidor." << endl;
+        cerr << "Error al recibir respuesta del servidor. Código de error: " << errno << endl;
     }
 }
 
