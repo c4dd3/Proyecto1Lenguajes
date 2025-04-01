@@ -221,7 +221,6 @@ void interfazAutenticado(int client_fd) {
             }
 
             // Limpiar la consola para la siguiente interacción
-            system("clear");
             cout << "\nElija una opción: \n";
             cout << "1. Agregar Contacto\n";
             cout << "2. Mostrar Contactos\n";
