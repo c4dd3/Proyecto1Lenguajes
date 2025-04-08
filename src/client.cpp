@@ -223,9 +223,11 @@ void checkMessages(int client_socket) {
 }
 
 // Interfaz post-ingreso (después de iniciar sesión)
+// Interfaz post-ingreso (después de iniciar sesión)
 void interfazAutenticado(int client_fd) {
     cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
     int opcion;
+
     while (true) {
         // Mostrar menú
         cout << "\nElija una opción: \n";
@@ -236,7 +238,10 @@ void interfazAutenticado(int client_fd) {
         cout << "5. Buscar Mensaje\n";
         cout << "Opción: ";
         cout.flush();
+
         cin >> opcion;
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Limpiar buffer
+
         if (opcion == 1) {
             agregar_contacto_func(client_fd);
         } else if (opcion == 2) {
@@ -258,6 +263,7 @@ void interfazAutenticado(int client_fd) {
         }
     }
 }
+
 
 // Función para registrar nuevo usuario
 void registrarse(string nombre, string apellido, string correo, string contrasena, int client_fd){
