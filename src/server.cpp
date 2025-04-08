@@ -437,7 +437,7 @@ void procesarMensaje(int client_socket, const string& comando) {
 void revisarMensajes(int client_socket) {
     // Bloquear el acceso a la lista de mensajes usando el semáforo
     sem_wait(sem);
-
+    cout << "revisando mensajes para: " << usuario_autenticado.correo << endl;
     // Recorrer la lista de mensajes
     bool hay_mensajes = false;
     for (int i = 0; i < shared_data->mensaje_count; ++i) {

@@ -224,14 +224,15 @@ void checkMessages(int client_socket) {
 
 // Interfaz post-ingreso (después de iniciar sesión)
 void interfazAutenticado(int client_fd) {
-    int opcion;
     cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
 
-    // Menú de opciones
+    string entrada;
+    int opcion;
+
     while (true) {
         // Revisar mensajes cada cierto tiempo
         checkMessages(client_fd);
-        
+
         // Mostrar menú
         cout << "\nElija una opción: \n";
         cout << "1. Agregar Contacto\n";
@@ -239,16 +240,15 @@ void interfazAutenticado(int client_fd) {
         cout << "3. Enviar Mensaje\n";
         cout << "4. Desconectar\n";
         cout << "Opción: ";
-        cout.flush();  // Asegura que se imprima inmediatamente
+        cout.flush();
 
-        // Usamos cin para leer la opción
-        cin >> opcion;
-        cin.ignore();  // Limpiar el buffer después de leer la opción
+        getline(cin, entrada);
 
-        if (cin.fail()) {  // Si la conversión falló, limpiar cin
+        // Intentar convertir la entrada a entero
+        try {
+            opcion = stoi(entrada);
+        } catch (...) {
             cout << "Entrada no válida. Intente nuevamente." << endl;
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
             continue;
         }
 
@@ -256,23 +256,21 @@ void interfazAutenticado(int client_fd) {
             agregar_contacto_func(client_fd);
         } else if (opcion == 2) {
             mostrar_contactos();
-        } else if (opcion == 3) { // Enviar Mensaje
+        } else if (opcion == 3) {
             string correo, mensaje;
             cout << "Ingrese el correo del destinatario: ";
-            cin >> correo;
-            cin.ignore(); // Limpiar buffer de salto de línea
+            getline(cin, correo);
             cout << "Escriba su mensaje: ";
-            getline(cin, mensaje); // Leer mensaje completo
+            getline(cin, mensaje);
             enviarMensaje(client_fd, correo, mensaje);
-        } else if (opcion == 4) { // Desconectar
+        } else if (opcion == 4) {
             disconnect(client_fd);
-            break; // Salir del ciclo si se desconecta
+            break;
         } else {
             cout << "Opción no válida. Intente nuevamente." << endl;
         }
 
-        // Esperar un intervalo de tiempo antes de revisar los mensajes nuevamente
-        usleep(1000000);  // Esperar 1 segundo (1000000 microsegundos)
+        usleep(5000000); // Esperar 1 segundo
     }
 }
 
