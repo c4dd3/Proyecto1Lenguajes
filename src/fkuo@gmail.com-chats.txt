@@ -1,0 +1,4 @@
+Contacto: grillo@gmail.com
+1; Quiero dormir
+0;Yo tambien
+---- Fin de chat con grillo@gmail.com ----

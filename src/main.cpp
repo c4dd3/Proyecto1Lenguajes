@@ -153,76 +153,100 @@ void iniciarSesion(string correo, string contrasena, int client_fd) {
 }
 
 class ChatWindow : public Gtk::ApplicationWindow {
-public:
-    ChatWindow(int client_fd) : client_fd(client_fd) {
-        set_title("SwiftTalk");
-        set_default_size(800, 600);
-        set_position(Gtk::WIN_POS_CENTER);
-
-        // Layout principal: horizontal
-        main_box.set_orientation(Gtk::ORIENTATION_HORIZONTAL);
-        add(main_box);
-
-        // Lista de contactos (columna izquierda)
-        contact_list.set_size_request(250);
-        contact_list.set_border_width(5);
-
-        // Contactos como Gtk::Labels dentro de Gtk::ListBox
-        listbox_contacts.append(*Gtk::make_managed<Gtk::Label>("Contacto 1"));
-        listbox_contacts.append(*Gtk::make_managed<Gtk::Label>("Contacto 2"));
-        listbox_contacts.append(*Gtk::make_managed<Gtk::Label>("Contacto 3"));
-
-        contact_list.pack_start(listbox_contacts);
-        main_box.pack_start(contact_list, Gtk::PACK_SHRINK);
-
-        // Área de chat (columna derecha)
-        chat_area.set_border_width(5);
-
-        // Agregar botones de control (Añadir Contacto / Cerrar sesión)
-        control_buttons_box.set_orientation(Gtk::ORIENTATION_VERTICAL);  // Apilarlos verticalmente
-        control_buttons_box.set_spacing(10);  // Espacio entre botones
-        control_buttons_box.set_border_width(5);
-
-        btn_add_contact.set_label("Añadir contacto");
-        btn_logout.set_label("Cerrar sesión");
-
-        // Agregar los botones a la caja horizontal
-        control_buttons_box.pack_start(btn_add_contact, Gtk::PACK_SHRINK);
-        control_buttons_box.pack_start(btn_logout, Gtk::PACK_SHRINK);
-
-
-        // Empaquetar botones de control en el área de chat
-        chat_area.pack_start(control_buttons_box, Gtk::PACK_SHRINK);
-
-        chat_text_view.set_editable(false);
-        chat_text_view.set_wrap_mode(Gtk::WrapMode::WRAP_WORD);
-
-        chat_area.pack_start(chat_text_view);
-        chat_area.pack_start(chat_entry, Gtk::PACK_SHRINK);
-        chat_area.pack_start(send_button, Gtk::PACK_SHRINK);
-
-        send_button.set_label("Enviar");
-
-        main_box.pack_start(chat_area);
-        main_box.pack_start(control_buttons_box, Gtk::PACK_SHRINK);
-
-        show_all_children();
-    }
-
-private:
-    int client_fd;
-    Gtk::Box main_box{Gtk::ORIENTATION_HORIZONTAL};
-    Gtk::Box contact_list{Gtk::ORIENTATION_VERTICAL};
-    Gtk::ListBox listbox_contacts;
-
-    Gtk::Box chat_area{Gtk::ORIENTATION_VERTICAL};
-    Gtk::Box control_buttons_box{Gtk::ORIENTATION_HORIZONTAL};
-    Gtk::Button btn_add_contact;
-    Gtk::Button btn_logout;
-    Gtk::TextView chat_text_view;
-    Gtk::Entry chat_entry;
-    Gtk::Button send_button;
-};
+    public:
+        ChatWindow(int client_fd) : client_fd(client_fd) {
+            set_title("SwiftTalk");
+            set_default_size(800, 600);
+            set_position(Gtk::WIN_POS_CENTER);
+    
+            // Layout principal: horizontal
+            main_box.set_orientation(Gtk::ORIENTATION_HORIZONTAL);
+            add(main_box);
+    
+            // Lista de contactos (columna izquierda)
+            contact_list.set_size_request(250);
+            contact_list.set_border_width(5);
+    
+            // Cargar contactos desde archivo
+            cargarContactos();
+    
+            // Llenar listbox con contactos dinámicamente
+            for (const auto& contacto : lista_contactos) {
+                std::string nombre_completo = contacto.nombre + " " + contacto.apellido;
+                auto label = Gtk::make_managed<Gtk::Label>(nombre_completo);
+                listbox_contacts.append(*label);
+            }
+    
+            contact_list.pack_start(listbox_contacts);
+            main_box.pack_start(contact_list, Gtk::PACK_SHRINK);
+    
+            // Área de chat (columna derecha)
+            chat_area.set_border_width(5);
+    
+            // Botones de control
+            control_buttons_box.set_orientation(Gtk::ORIENTATION_VERTICAL);
+            control_buttons_box.set_spacing(10);
+            control_buttons_box.set_border_width(5);
+    
+            btn_add_contact.set_label("Añadir contacto");
+            btn_logout.set_label("Cerrar sesión");
+    
+            control_buttons_box.pack_start(btn_add_contact, Gtk::PACK_SHRINK);
+            control_buttons_box.pack_start(btn_logout, Gtk::PACK_SHRINK);
+    
+            chat_area.pack_start(control_buttons_box, Gtk::PACK_SHRINK);
+            chat_text_view.set_editable(false);
+            chat_text_view.set_wrap_mode(Gtk::WrapMode::WRAP_WORD);
+    
+            chat_area.pack_start(chat_text_view);
+            chat_area.pack_start(chat_entry, Gtk::PACK_SHRINK);
+            chat_area.pack_start(send_button, Gtk::PACK_SHRINK);
+    
+            send_button.set_label("Enviar");
+    
+            main_box.pack_start(chat_area);
+            show_all_children();
+        }
+    
+    private:
+        int client_fd;
+    
+        Gtk::Box main_box{Gtk::ORIENTATION_HORIZONTAL};
+        Gtk::Box contact_list{Gtk::ORIENTATION_VERTICAL};
+        Gtk::ListBox listbox_contacts;
+    
+        Gtk::Box chat_area{Gtk::ORIENTATION_VERTICAL};
+        Gtk::TextView chat_text_view;
+        Gtk::Entry chat_entry;
+        Gtk::Button send_button;
+    
+        Gtk::Box control_buttons_box;
+        Gtk::Button btn_add_contact;
+        Gtk::Button btn_logout;
+    
+        void cargarContactos() {
+            std::string nombreArchivo = usuario_autenticado.correo + "-contactos.txt";
+            std::ifstream archivo(nombreArchivo);
+    
+            if (!archivo.is_open()) {
+                std::cout << "No hay contactos guardados aún para este usuario." << std::endl;
+                return;
+            }
+    
+            lista_contactos.clear();
+            std::string linea;
+            while (getline(archivo, linea)) {
+                std::stringstream ss(linea);
+                std::string nombre, apellido, correo;
+                if (getline(ss, nombre, ',') && getline(ss, apellido, ',') && getline(ss, correo)) {
+                    lista_contactos.push_back({nombre, apellido, correo});
+                }
+            }
+    
+            archivo.close();
+            std::cout << "Contactos cargados correctamente desde " << nombreArchivo << std::endl;
+        }
+    };
 
 // Ventana de Registro
 
