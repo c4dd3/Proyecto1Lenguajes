@@ -162,8 +162,6 @@ void recibirMensajes(int client_fd) {
     }
 }
 
-
-
 // Función para enviar mensajes al servidor
 void enviarMensaje(int client_fd, const string& correo_destino, const string& mensaje) {
     string comando = "MSG " + correo_destino + " " + mensaje;
@@ -190,86 +188,93 @@ void enviarMensaje(int client_fd, const string& correo_destino, const string& me
     }
 }
 
-// Interfaz pos-ingreso
-void interfazAutenticado(int client_fd) {
-    int opcion;
-    fd_set read_fds;
-    int max_fd = client_fd; // Definir el descriptor máximo
+// Función que revisa si hay un nuevo mensaje o no
+void checkMessages(int client_socket) {
+    // Enviar el comando "CHECKMSG" al servidor
+    string comando = "CHECKMSG";
+    if (send(client_socket, comando.c_str(), comando.length(), 0) == -1) {
+        cerr << "Error al enviar el comando al servidor." << endl;
+        return;
+    }
 
-    cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
+    // Buffer para recibir la respuesta del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
 
-    cout << "\nElija una opción: \n";
-    cout << "1. Agregar Contacto\n";
-    cout << "2. Mostrar Contactos\n";
-    cout << "3. Enviar Mensaje\n";
-    cout << "4. Desconectar\n";
-    cout << "Opción: ";
-    cout.flush(); // Asegura que se imprima inmediatamente
-    
-    while (true) {
-        FD_ZERO(&read_fds);
-        FD_SET(client_fd, &read_fds); // Monitorear el socket
-        FD_SET(STDIN_FILENO, &read_fds); // Monitorear entrada del usuario
-        
-        select(max_fd + 1, &read_fds, NULL, NULL, NULL); // Esperar eventos
-    
-        if (FD_ISSET(client_fd, &read_fds)) {
-            // Recibir mensaje del servidor si hay mensajes nuevos
-            cout << "\nIntentando recibir mensaje" << endl;
-            recibirMensajes(client_fd);
+    if (bytes_received <= 0) {
+        if (bytes_received == 0) {
+            cerr << "El servidor cerró la conexión." << endl;
+        } else {
+            cerr << "Error al recibir la respuesta del servidor. Código de error: " << errno << endl;
         }
-    
-        if (FD_ISSET(STDIN_FILENO, &read_fds)) {
-            string input;
-            getline(cin, input); // Leer la línea completa del usuario
+        return;
+    }
 
-            if (input.empty()) {
-                continue; // Evita procesar entradas vacías
-            }
-    
-            stringstream ss(input);
-            int opcion;
-            ss >> opcion;
-    
-            if (ss.fail()) {  // Si la conversión falló, limpiar cin
-                cout << "Entrada no válida. Intente nuevamente." << endl;
-                cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
-                continue;
-            }
-    
-            if (opcion == 1) {
-                agregar_contacto_func(client_fd);
-            } else if (opcion == 2) {
-                mostrar_contactos();
-            } else if (opcion == 3) { // Enviar Mensaje
-                string correo, mensaje;
-                cout << "Ingrese el correo del destinatario: ";
-                cin >> correo;
-                cin.ignore(); // Limpiar buffer de salto de línea
-                cout << "Escriba su mensaje: ";
-                getline(cin, mensaje); // Leer mensaje completo
-                enviarMensaje(client_fd, correo, mensaje);
-            } else if (opcion == 4) { // Desconectar
-                disconnect(client_fd);
-                break; // Salir del ciclo si se desconecta
-            } else {
-                cout << "Opción no válida. Intente nuevamente." << endl;
-            }
+    // Convertir la respuesta a un string
+    string respuesta(buffer, bytes_received);
 
-            // Limpiar la consola para la siguiente interacción
-            cout << "\nElija una opción: \n";
-            cout << "1. Agregar Contacto\n";
-            cout << "2. Mostrar Contactos\n";
-            cout << "3. Enviar Mensaje\n";
-            cout << "4. Desconectar\n";
-            cout << "Opción: ";
-            cout.flush();
-        }
-        usleep(100000);  // 100 ms
+    // Verificar si hay un mensaje nuevo
+    if (respuesta.find("ERROR") != string::npos) {
+        cerr << "Error al revisar mensajes: " << respuesta << endl;
+    } else {
+        // Si no hay error, imprimir la respuesta del servidor
+        cout << "Respuesta del servidor: " << respuesta << endl;
     }
 }
 
+// Interfaz post-ingreso (después de iniciar sesión)
+void interfazAutenticado(int client_fd) {
+    int opcion;
+    cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
+
+    // Menú de opciones
+    while (true) {
+        // Revisar mensajes cada cierto tiempo
+        checkMessages(client_fd);
+        
+        // Mostrar menú
+        cout << "\nElija una opción: \n";
+        cout << "1. Agregar Contacto\n";
+        cout << "2. Mostrar Contactos\n";
+        cout << "3. Enviar Mensaje\n";
+        cout << "4. Desconectar\n";
+        cout << "Opción: ";
+        cout.flush();  // Asegura que se imprima inmediatamente
+
+        // Usamos cin para leer la opción
+        cin >> opcion;
+        cin.ignore();  // Limpiar el buffer después de leer la opción
+
+        if (cin.fail()) {  // Si la conversión falló, limpiar cin
+            cout << "Entrada no válida. Intente nuevamente." << endl;
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
+            continue;
+        }
+
+        if (opcion == 1) {
+            agregar_contacto_func(client_fd);
+        } else if (opcion == 2) {
+            mostrar_contactos();
+        } else if (opcion == 3) { // Enviar Mensaje
+            string correo, mensaje;
+            cout << "Ingrese el correo del destinatario: ";
+            cin >> correo;
+            cin.ignore(); // Limpiar buffer de salto de línea
+            cout << "Escriba su mensaje: ";
+            getline(cin, mensaje); // Leer mensaje completo
+            enviarMensaje(client_fd, correo, mensaje);
+        } else if (opcion == 4) { // Desconectar
+            disconnect(client_fd);
+            break; // Salir del ciclo si se desconecta
+        } else {
+            cout << "Opción no válida. Intente nuevamente." << endl;
+        }
+
+        // Esperar un intervalo de tiempo antes de revisar los mensajes nuevamente
+        usleep(1000000);  // Esperar 1 segundo (1000000 microsegundos)
+    }
+}
 
 // Función para registrar nuevo usuario
 void registrarse(string nombre, string apellido, string correo, string contrasena, int client_fd){

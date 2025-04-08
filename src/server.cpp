@@ -30,9 +30,33 @@ struct Usuario {
     bool conectado;                     // Estado de conexión del usuario (true = conectado, false = desconectado)
 };
 
+struct Mensaje {
+    char correoEmisor[50];
+    char correoReceptor[50];
+    char contenido[256];
+    Mensaje* siguiente;
+
+    // Constructor para inicializar la estructura
+    Mensaje(const char* emisor, const char* receptor, const char* msg) {
+        // Usamos strncpy para evitar desbordamientos de buffer
+        strncpy(correoEmisor, emisor, sizeof(correoEmisor) - 1);
+        correoEmisor[sizeof(correoEmisor) - 1] = '\0';      // Asegurarnos de que la cadena se termine en '\0'
+        
+        strncpy(correoReceptor, receptor, sizeof(correoReceptor) - 1);
+        correoReceptor[sizeof(correoReceptor) - 1] = '\0';  // Asegurarnos de que la cadena se termine en '\0'
+
+        strncpy(contenido, msg, sizeof(contenido) - 1);
+        contenido[sizeof(contenido) - 1] = '\0';            // Asegurarnos de que la cadena se termine en '\0'
+
+        siguiente = nullptr;                                // Inicializamos el puntero siguiente como nullptr (nulo)
+    }
+};
+
 
 struct SharedData {
     Usuario lista_usuarios[100];
+    Mensaje mensajes[100];
+    int mensaje_count;
     int user_count;
 };
 
@@ -41,6 +65,7 @@ sem_t *sem;                 // Semáforo general para acceder a la lista de usua
 
 
 int server_fd;
+struct Usuario usuario_autenticado;
 
 // Función para leer el archivo de configuración y obtener el puerto
 int read_config() {
@@ -199,6 +224,9 @@ void register_user(int client_socket, const string& comando) {
         shared_data->lista_usuarios[shared_data->user_count] = nuevo_usuario;
         shared_data->user_count++;
 
+        // Almacena la info del usuario
+        usuario_autenticado = nuevo_usuario;
+
         // Guardar los usuarios en el archivo
         guardar_usuarios();
 
@@ -235,6 +263,9 @@ void login_user(int client_socket, const string& comando) {
             strncpy(shared_data->lista_usuarios[i].ip_cliente, ip_cliente.c_str(), sizeof(shared_data->lista_usuarios[i].ip_cliente) - 1);
             shared_data->lista_usuarios[i].ip_cliente[sizeof(shared_data->lista_usuarios[i].ip_cliente) - 1] = '\0';
 
+            // Almacena la info del usuario
+            usuario_autenticado = shared_data->lista_usuarios[i];
+
             break;
         }
     }
@@ -256,7 +287,7 @@ void disconnect_user(int client_socket) {
 
     bool usuario_encontrado = false;
     for (int i = 0; i < shared_data->user_count; ++i) {
-        if (shared_data->lista_usuarios[i].socket_cliente == client_socket) {
+        if (strcmp(shared_data->lista_usuarios[i].correo, usuario_autenticado.correo) == 0) {
             // Cambiar estado de conexión
             shared_data->lista_usuarios[i].conectado = false;
             shared_data->lista_usuarios[i].socket_cliente = -1;
@@ -317,7 +348,33 @@ void get_user_info(int client_socket, const string &comando) {
     }
 }
 
-// Función para recibir y enviar mensajes // TODO
+// Función para agregar el mensaje en la lista de mensajes de la memoria compartida
+void addMSG(const char* correoReceptor, const char* contenido) {
+    // Crear un nuevo mensaje con los datos proporcionados
+    Mensaje nuevoMensaje(usuario_autenticado.correo, correoReceptor, contenido);
+
+    // Bloquear el acceso a la lista de mensajes usando el semáforo
+    sem_wait(sem);
+
+    // Comprobar si hay espacio disponible para un nuevo mensaje
+    if (shared_data->mensaje_count < 100) {
+        // Agregar el nuevo mensaje en el siguiente índice disponible
+        shared_data->mensajes[shared_data->mensaje_count] = nuevoMensaje;
+
+        // Incrementar el contador de mensajes
+        shared_data->mensaje_count++;
+
+        cout << "Mensaje enviado a: " << correoReceptor << " en el índice " << shared_data->mensaje_count - 1 << "." << endl;
+    } else {
+        // Si la lista está llena, mostrar mensaje de error
+        cout << "La lista de mensajes está llena. No se pueden agregar más mensajes." << endl;
+    }
+
+    // Liberar el semáforo después de modificar la lista
+    sem_post(sem);
+}
+
+// Función para procesar un mensaje
 void procesarMensaje(int client_socket, const string& comando) {
     // El comando esperado es "MSG <correo> <mensaje>"
     size_t primer_espacio = comando.find(' ');
@@ -333,9 +390,9 @@ void procesarMensaje(int client_socket, const string& comando) {
     string mensaje = comando.substr(segundo_espacio + 1);
 
     cout << "Mensaje recibido para " << correo_destino << ": " << mensaje << endl;
-    cout << "Intentando enviar mensaje..." << endl;
+    cout << "Intentando agregar mensaje..." << endl;
 
-    // Buscar el correo del emisor
+    // Buscar el correo del emisor desde la lista de usuarios
     string correo_emisor = ""; // Variable para el correo del emisor
     for (int i = 0; i < shared_data->user_count; ++i) {
         if (shared_data->lista_usuarios[i].socket_cliente == client_socket) {
@@ -352,45 +409,84 @@ void procesarMensaje(int client_socket, const string& comando) {
     }
 
     // Buscar el usuario en la lista compartida
-    int destinatario_socket = -1;
-    sem_t* sem_destinatario = nullptr;
-    bool encontrado = false;
-
+    bool usuario_destino_encontrado = false;
+    bool usuario_destino_conectado = false;
     for (int i = 0; i < shared_data->user_count; ++i) {
         if (correo_destino == shared_data->lista_usuarios[i].correo) {
-            encontrado = true;
+            usuario_destino_encontrado = true;
             if (shared_data->lista_usuarios[i].conectado) {
-                destinatario_socket = shared_data->lista_usuarios[i].socket_cliente;
-                sem_destinatario = shared_data->lista_usuarios[i].sem_socket;
+                usuario_destino_conectado = true;
             }
             break;
         }
     }
 
-    if (!encontrado) {
+    if (!usuario_destino_encontrado) {
         cout << "Usuario no encontrado." << endl;
         const char* error_msg = "Usuario no encontrado.\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
         return;
     }
 
-    if (destinatario_socket == -1) {
-        cout << "El usuario está desconectado." << endl;
-        const char* offline_msg = "El usuario está desconectado.\n";
-        send(client_socket, offline_msg, strlen(offline_msg), 0);
-        return;
-    }
-    // Mensaje de confirmación
-    const char* success_msg = "Mensaje enviado correctamente.\n";
-    send(client_socket, success_msg, strlen(success_msg), 0);
+    // Llamar a addMSG, pasando solo los parámetros necesarios
+    addMSG(correo_destino, mensaje);
 
-    cout << "Socket Emisor:" << client_socket <<" | Socket Receptor:" << destinatario_socket << endl;
-    string mensaje_final = "Mensaje de " + correo_emisor + ": " + mensaje + "\n";
-    cout << "Enviando" << endl;
-    // Enviar el mensaje al destinatario con control de concurrencia
-    sem_wait(sem_destinatario); // Bloquear el semáforo del destinatario
-    send(destinatario_socket, mensaje_final.c_str(), mensaje_final.length(), 0);
-    sem_post(sem_destinatario); // Liberar el semáforo
+    // Responder al emisor si el destinatario está conectado o no
+    if (usuario_destino_conectado) {
+        const char* success_msg = "Mensaje enviado correctamente.\n";
+        send(client_socket, success_msg, strlen(success_msg), 0);
+    } else {
+        const char* offline_msg = "El usuario está desconectado. El mensaje será entregado cuando se conecte.\n";
+        send(client_socket, offline_msg, strlen(offline_msg), 0);
+    }
+}
+
+// Función para revisar los mensajes para el usuario autenticado
+void revisarMensajes(int client_socket) {
+    // Bloquear el acceso a la lista de mensajes usando el semáforo
+    sem_wait(sem);
+
+    // Recorrer la lista de mensajes
+    bool hay_mensajes = false;
+    for (int i = 0; i < shared_data->mensaje_count; ++i) {
+        // Comprobar si el mensaje es para el usuario autenticado
+        if (strcmp(shared_data->mensajes[i].correoReceptor, usuario_autenticado.correo) == 0) {
+            // Enviar el mensaje al cliente correspondiente
+            string contenidoMensaje = shared_data->mensajes[i].contenido;
+            string correoEmisor = shared_data->mensajes[i].correoEmisor;
+
+            // Enviar al cliente los datos del mensaje
+            string mensajeCompleto = "De: " + correoEmisor + "\n" + "Mensaje: " + contenidoMensaje;
+            send(client_socket, mensajeCompleto.c_str(), mensajeCompleto.length(), 0);
+
+            // Mostrar en consola que el mensaje fue enviado
+            cout << "Mensaje enviado al cliente: " << correoEmisor << endl;
+            cout << "Contenido: " << contenidoMensaje << endl;
+
+            // Modificar la lista de mensajes: mover los mensajes hacia atrás
+            for (int j = i; j < shared_data->mensaje_count - 1; ++j) {
+                shared_data->mensajes[j] = shared_data->mensajes[j + 1]; // Desplazar el mensaje hacia atrás
+            }
+
+            // Reducir el contador de mensajes
+            shared_data->mensaje_count--;
+
+            // Establecer la bandera de que hay al menos un mensaje
+            hay_mensajes = true;
+
+            // Salir del bucle una vez que se haya procesado el mensaje
+            break;
+        }
+    }
+
+    // Si no se encontraron mensajes, informamos al usuario
+    if (!hay_mensajes) {
+        const char* error_msg = "No tienes mensajes pendientes.\n";
+        send(client_socket, error_msg, strlen(error_msg), 0);
+    }
+
+    // Liberar el semáforo después de revisar los mensajes
+    sem_post(sem);
 }
 
 // Función para manejar la conexión con un cliente
@@ -429,9 +525,15 @@ void handle_client(int client_socket) {
         else if (comando.substr(0, 7) == "GETUSER"){
             get_user_info(client_socket, comando);
         } 
+        // Si el comando es "MSG"
         else if (comando.substr(0, 3) == "MSG") {
             procesarMensaje(client_socket, comando);
-        } else {
+        }
+        // Si el comando es "CHECKMSG" (nuevo comando para revisar mensajes)
+        else if (comando.substr(0, 8) == "CHECKMSG") {
+            revisarMensajes(client_socket);
+        }
+        else {
             const char* error_msg = "Comando no reconocido.\n";
             send(client_socket, error_msg, strlen(error_msg), 0);
         }
