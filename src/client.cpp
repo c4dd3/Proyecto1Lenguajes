@@ -309,8 +309,8 @@ void interfazAutenticado(int client_fd) {
             getline(cin, mensaje);
             enviarMensaje(client_fd, correo, mensaje);
         } else if (opcion == 4) {
-            disconnect(client_fd);
             guardarContactos();
+            disconnect(client_fd);
             break;
         } else if (opcion == 5) {
             checkMessages(client_fd);
