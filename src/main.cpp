@@ -138,10 +138,6 @@ void iniciarSesion(string correo, string contrasena, int client_fd) {
                     // Ahora que ya tenemos la información, podemos ir a la interfaz autenticada
                     
                     // Aqui hayq eu llamar a la interfaz de inicio...
-                    cout << "Usuario autenticado: " << usuario_autenticado.nombre << endl;
-                    cout << "Usuario autenticado: " << usuario_autenticado.apellido << endl;
-                    cout << "Usuario autenticado: " << usuario_autenticado.correo << endl;
-                    cout << "Usuario autenticado: " << usuario_autenticado.contrasena << endl;
                     cout << "Proceso de Login exitoso..." << endl;
                     //interfazAutenticado(client_fd);
                 } else {
@@ -182,6 +178,22 @@ public:
         // Área de chat (columna derecha)
         chat_area.set_border_width(5);
 
+        // Agregar botones de control (Añadir Contacto / Cerrar sesión)
+        control_buttons_box.set_orientation(Gtk::ORIENTATION_VERTICAL);  // Apilarlos verticalmente
+        control_buttons_box.set_spacing(10);  // Espacio entre botones
+        control_buttons_box.set_border_width(5);
+
+        btn_add_contact.set_label("Añadir contacto");
+        btn_logout.set_label("Cerrar sesión");
+
+        // Agregar los botones a la caja horizontal
+        control_buttons_box.pack_start(btn_add_contact, Gtk::PACK_SHRINK);
+        control_buttons_box.pack_start(btn_logout, Gtk::PACK_SHRINK);
+
+
+        // Empaquetar botones de control en el área de chat
+        chat_area.pack_start(control_buttons_box, Gtk::PACK_SHRINK);
+
         chat_text_view.set_editable(false);
         chat_text_view.set_wrap_mode(Gtk::WrapMode::WRAP_WORD);
 
@@ -192,6 +204,7 @@ public:
         send_button.set_label("Enviar");
 
         main_box.pack_start(chat_area);
+        main_box.pack_start(control_buttons_box, Gtk::PACK_SHRINK);
 
         show_all_children();
     }
@@ -203,6 +216,9 @@ private:
     Gtk::ListBox listbox_contacts;
 
     Gtk::Box chat_area{Gtk::ORIENTATION_VERTICAL};
+    Gtk::Box control_buttons_box{Gtk::ORIENTATION_HORIZONTAL};
+    Gtk::Button btn_add_contact;
+    Gtk::Button btn_logout;
     Gtk::TextView chat_text_view;
     Gtk::Entry chat_entry;
     Gtk::Button send_button;
