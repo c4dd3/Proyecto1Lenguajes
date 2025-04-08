@@ -34,14 +34,12 @@ struct Mensaje {
     char correoEmisor[100];
     char correoReceptor[100];
     char contenido[512];
-
     // Constructor manual (no puede usarse directamente en memoria compartida, pero útil en código fuera de ella)
     Mensaje() {
         correoEmisor[0] = '\0';
         correoReceptor[0] = '\0';
         contenido[0] = '\0';
     }
-
     Mensaje(const string& emisor, const string& receptor, const string& msg) {
         strncpy(correoEmisor, emisor.c_str(), sizeof(correoEmisor));
         correoEmisor[sizeof(correoEmisor) - 1] = '\0';
@@ -60,9 +58,7 @@ struct SharedData {
 };
 
 SharedData *shared_data;
-sem_t *sem;                 // Semáforo general para acceder a la lista de usuarios
-
-
+sem_t *sem;
 int server_fd;
 struct Usuario usuario_autenticado;
 
@@ -87,12 +83,10 @@ int read_config() {
 // Función para guardar la lista de usuarios en un archivo
 void guardar_usuarios() {
     ofstream user_file("users.txt");
-
     if (!user_file.is_open()) {
         cerr << "Error al abrir el archivo de usuarios" << endl;
         return;
     }
-
     // Recorrer la lista de usuarios y guardarlos
     for (int i = 0; i < shared_data->user_count; ++i) {
         Usuario& usuario = shared_data->lista_usuarios[i];
@@ -103,9 +97,8 @@ void guardar_usuarios() {
                   << usuario.contrasena << " "
                   << usuario.ip_cliente << " "
                   << usuario.conectado << " "
-                  << -1 << endl;  // -1 como valor nulo para el socket_cliente
+                  << -1 << endl;
     }
-
     user_file.close();
     cout << "Usuarios guardados correctamente en users.txt" << endl;
 }
@@ -124,7 +117,6 @@ void shutdown_server(int signum) {
 // Función para cargar usuarios desde el archivo
 void cargar_usuarios() {
     ifstream user_file("users.txt");
-
     // Si no se puede abrir el archivo, lo creamos (vacío)
     if (!user_file.is_open()) {
         cout << "El archivo de usuarios no existe, creando archivo vacío..." << endl;
@@ -137,12 +129,10 @@ void cargar_usuarios() {
         cout << "Archivo de usuarios creado exitosamente." << endl;
         return;
     }
-
     // Variables para almacenar los datos temporales
     char nombre[50], apellido[50], correo[50], contrasena[50], ip_cliente[INET_ADDRSTRLEN];
     bool conectado;
     int socket_cliente;
-
     // Leer cada línea del archivo y cargar los datos de los usuarios
     while (user_file >> nombre >> apellido >> correo >> contrasena >> ip_cliente >> conectado >> socket_cliente) {
         // Verificamos que los campos leídos sean válidos
@@ -150,29 +140,23 @@ void cargar_usuarios() {
             cerr << "Error al leer datos de usuario del archivo." << endl;
             break;
         }
-
         // Asignar los datos a la lista de usuarios
         strcpy(shared_data->lista_usuarios[shared_data->user_count].nombre, nombre);
         strcpy(shared_data->lista_usuarios[shared_data->user_count].apellido, apellido);
         strcpy(shared_data->lista_usuarios[shared_data->user_count].correo, correo);
         strcpy(shared_data->lista_usuarios[shared_data->user_count].contrasena, contrasena);
-
         // Verificamos que la IP sea válida. Si no lo es, asignamos una IP por defecto (por ejemplo, "0.0.0.0")
         if (strlen(ip_cliente) == 0) {
             strcpy(shared_data->lista_usuarios[shared_data->user_count].ip_cliente, "0.0.0.0");
         } else {
             strcpy(shared_data->lista_usuarios[shared_data->user_count].ip_cliente, ip_cliente);
         }
-
         // Si no se ha especificado el estado de conexión, lo dejamos como falso (no conectado)
         shared_data->lista_usuarios[shared_data->user_count].conectado = conectado ? true : false;
-
         // Asignar un valor nulo al socket_cliente (ya que el socket no es válido en este momento)
         shared_data->lista_usuarios[shared_data->user_count].socket_cliente = -1;  // -1 indica un socket no válido
-
         shared_data->user_count++;
     }
-
     // Cerrar el archivo
     user_file.close();
 }
@@ -183,7 +167,6 @@ void register_user(int client_socket, const string& comando) {
     stringstream ss(comando.substr(8));  // Extraer todo después de "REGISTER "
     string nombre, apellido, correo, contrasena;
     ss >> nombre >> apellido >> correo >> contrasena;
-
     // Comprobamos si el correo ya está registrado
     sem_wait(sem);  // Bloquear semáforo para proteger la lista de usuarios
     bool usuario_existe = false;
@@ -193,7 +176,6 @@ void register_user(int client_socket, const string& comando) {
             break;
         }
     }
-
     if (usuario_existe) {
         const char* error_msg = "El correo ya está registrado.\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
@@ -204,31 +186,24 @@ void register_user(int client_socket, const string& comando) {
         strcpy(nuevo_usuario.apellido, apellido.c_str());
         strcpy(nuevo_usuario.correo, correo.c_str());
         strcpy(nuevo_usuario.contrasena, contrasena.c_str());
-
         // Obtener la IP del cliente
         struct sockaddr_in addr;
         socklen_t addr_size = sizeof(struct sockaddr_in);
         getpeername(client_socket, (struct sockaddr*)&addr, &addr_size);
         string ip_cliente = inet_ntoa(addr.sin_addr);
-
         // Guardar la IP en la estructura del usuario
         strncpy(nuevo_usuario.ip_cliente, ip_cliente.c_str(), sizeof(nuevo_usuario.ip_cliente) - 1);
         nuevo_usuario.ip_cliente[sizeof(nuevo_usuario.ip_cliente) - 1] = '\0';
-
         // Estado de conexión
         nuevo_usuario.conectado = true;
         nuevo_usuario.socket_cliente = client_socket;
-
         // Añadir el nuevo usuario a la lista
         shared_data->lista_usuarios[shared_data->user_count] = nuevo_usuario;
         shared_data->user_count++;
-
         // Almacena la info del usuario
         usuario_autenticado = nuevo_usuario;
-
         // Guardar los usuarios en el archivo
         guardar_usuarios();
-
         const char* success_msg = "Registro exitoso y conexión establecida.\n";
         send(client_socket, success_msg, strlen(success_msg), 0);
     }
@@ -241,14 +216,11 @@ void login_user(int client_socket, const string& comando) {
     stringstream ss(comando.substr(6));  // Extraer todo después de "LOGIN "
     string correo, contrasena;
     ss >> correo >> contrasena;
-
     sem_wait(sem);  // Bloquear semáforo para proteger la lista de usuarios
     bool usuario_valido = false;
-
     for (int i = 0; i < shared_data->user_count; ++i) {
         if (shared_data->lista_usuarios[i].correo == correo && shared_data->lista_usuarios[i].contrasena == contrasena) {
             usuario_valido = true;
-
             // Cambiar estado a "conectado"
             shared_data->lista_usuarios[i].conectado = true;
             shared_data->lista_usuarios[i].socket_cliente = client_socket;
@@ -257,18 +229,14 @@ void login_user(int client_socket, const string& comando) {
             socklen_t addr_size = sizeof(struct sockaddr_in);
             getpeername(client_socket, (struct sockaddr*)&addr, &addr_size);
             string ip_cliente = inet_ntoa(addr.sin_addr);
-
             // Almacenar la IP
             strncpy(shared_data->lista_usuarios[i].ip_cliente, ip_cliente.c_str(), sizeof(shared_data->lista_usuarios[i].ip_cliente) - 1);
             shared_data->lista_usuarios[i].ip_cliente[sizeof(shared_data->lista_usuarios[i].ip_cliente) - 1] = '\0';
-
             // Almacena la info del usuario
             usuario_autenticado = shared_data->lista_usuarios[i];
-
             break;
         }
     }
-
     if (usuario_valido) {
         const char* success_msg = "Login exitoso.\n";
         send(client_socket, success_msg, strlen(success_msg), 0);
@@ -276,7 +244,6 @@ void login_user(int client_socket, const string& comando) {
         const char* error_msg = "Credenciales incorrectas.\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
     }
-
     sem_post(sem);  // Liberar semáforo
 }
 
@@ -315,18 +282,14 @@ void get_user_info(int client_socket, const string &comando) {
     istringstream ss(comando);
     string command, correo;
     ss >> command >> correo;
-
     if (correo.empty()) {
         const char *error_msg = "ERROR: Debe proporcionar un correo para obtener la información.\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
         return;
     }
-
     sem_wait(sem);  // Bloquear semáforo para proteger la lista de usuarios
-
     bool found = false;
     string user_info;
-
     for (int i = 0; i < shared_data->user_count; ++i) {
         if (shared_data->lista_usuarios[i].correo == correo) {
             found = true;
@@ -336,9 +299,7 @@ void get_user_info(int client_socket, const string &comando) {
             break;
         }
     }
-
     sem_post(sem);  // Liberar semáforo
-
     if (found) {
         send(client_socket, user_info.c_str(), user_info.length(), 0);
     } else {
@@ -351,24 +312,19 @@ void get_user_info(int client_socket, const string &comando) {
 void addMSG(const string& correoReceptor, const string& contenido) {
     // Crear un nuevo mensaje con los datos proporcionados
     Mensaje nuevoMensaje(usuario_autenticado.correo, correoReceptor, contenido);
-
     // Bloquear el acceso a la lista de mensajes usando el semáforo
     sem_wait(sem);
-
     // Comprobar si hay espacio disponible para un nuevo mensaje
     if (shared_data->mensaje_count < 100) {
         // Agregar el nuevo mensaje en el siguiente índice disponible
         shared_data->mensajes[shared_data->mensaje_count] = nuevoMensaje;
-
         // Incrementar el contador de mensajes
         shared_data->mensaje_count++;
-
         cout << "Mensaje enviado a: " << correoReceptor << " en el índice " << shared_data->mensaje_count - 1 << "." << endl;
     } else {
         // Si la lista está llena, mostrar mensaje de error
         cout << "La lista de mensajes está llena. No se pueden agregar más mensajes." << endl;
     }
-
     // Liberar el semáforo después de modificar la lista
     sem_post(sem);
 }
@@ -378,19 +334,15 @@ void procesarMensaje(int client_socket, const string& comando) {
     // El comando esperado es "MSG <correo> <mensaje>"
     size_t primer_espacio = comando.find(' ');
     size_t segundo_espacio = comando.find(' ', primer_espacio + 1);
-
     if (primer_espacio == string::npos || segundo_espacio == string::npos) {
         const char* error_msg = "Formato incorrecto. Use: MSG <correo> <mensaje>\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
         return;
     }
-
     string correo_destino = comando.substr(primer_espacio + 1, segundo_espacio - primer_espacio - 1);
     string mensaje = comando.substr(segundo_espacio + 1);
-
     cout << "Mensaje recibido para " << correo_destino << ": " << mensaje << endl;
     cout << "Intentando agregar mensaje..." << endl;
-
     // Buscar el correo del emisor desde la lista de usuarios
     string correo_emisor = ""; // Variable para el correo del emisor
     for (int i = 0; i < shared_data->user_count; ++i) {
@@ -399,14 +351,12 @@ void procesarMensaje(int client_socket, const string& comando) {
             break;
         }
     }
-
     // Si no se encuentra el emisor, terminamos el procesamiento
     if (correo_emisor.empty()) {
         const char* error_msg = "No se encontró el correo del emisor.\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
         return;
     }
-
     // Buscar el usuario en la lista compartida
     bool usuario_destino_encontrado = false;
     bool usuario_destino_conectado = false;
@@ -419,17 +369,14 @@ void procesarMensaje(int client_socket, const string& comando) {
             break;
         }
     }
-
     if (!usuario_destino_encontrado) {
         cout << "Usuario no encontrado." << endl;
         const char* error_msg = "Usuario no encontrado.\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
         return;
     }
-
     // Llamar a addMSG, pasando solo los parámetros necesarios
     addMSG(correo_destino, mensaje);
-
     // Responder al emisor si el destinatario está conectado o no
     if (usuario_destino_conectado) {
         const char* success_msg = "Mensaje enviado correctamente.\n";
@@ -444,7 +391,7 @@ void procesarMensaje(int client_socket, const string& comando) {
 void revisarMensajes(int client_socket) {
     // Bloquear el acceso a la lista de mensajes usando el semáforo
     sem_wait(sem);
-    cout << "revisando mensajes para: " << usuario_autenticado.correo << endl;
+    //cout << "revisando mensajes para: " << usuario_autenticado.correo << endl;
     // Recorrer la lista de mensajes
     bool hay_mensajes = false;
     for (int i = 0; i < shared_data->mensaje_count; ++i) {
@@ -452,37 +399,29 @@ void revisarMensajes(int client_socket) {
             // Enviar el mensaje al cliente correspondiente
             string contenidoMensaje = shared_data->mensajes[i].contenido;
             string correoEmisor = shared_data->mensajes[i].correoEmisor;
-
             // Enviar al cliente los datos del mensaje
             string mensajeCompleto = "De: " + correoEmisor + "\n" + "Mensaje: " + contenidoMensaje;
             send(client_socket, mensajeCompleto.c_str(), mensajeCompleto.length(), 0);
-
             // Mostrar en consola que el mensaje fue enviado
-            cout << "Mensaje enviado al cliente: " << correoEmisor << endl;
-            cout << "Contenido: " << contenidoMensaje << endl;
-
+            //cout << "Mensaje enviado al cliente: " << correoEmisor << endl;
+            //cout << "Contenido: " << contenidoMensaje << endl;
             // Modificar la lista de mensajes: mover los mensajes hacia atrás
             for (int j = i; j < shared_data->mensaje_count - 1; ++j) {
                 shared_data->mensajes[j] = shared_data->mensajes[j + 1]; // Desplazar el mensaje hacia atrás
             }
-
             // Reducir el contador de mensajes
             shared_data->mensaje_count--;
-
             // Establecer la bandera de que hay al menos un mensaje
             hay_mensajes = true;
-
             // Salir del bucle una vez que se haya procesado el mensaje
             break;
         }
     }
-
     // Si no se encontraron mensajes, informamos al usuario
     if (!hay_mensajes) {
         const char* error_msg = "No tienes mensajes pendientes.\n";
         send(client_socket, error_msg, strlen(error_msg), 0);
     }
-
     // Liberar el semáforo después de revisar los mensajes
     sem_post(sem);
 }
@@ -492,7 +431,6 @@ void handle_client(int client_socket) {
     // Enviar mensaje de confirmación de conexión al cliente
     const char* confirmation_msg = "Conexión establecida correctamente. Bienvenido al servidor de mensajería.\n";
     send(client_socket, confirmation_msg, strlen(confirmation_msg), 0);
-
     // Bucle para recibir múltiples comandos del cliente
     while (true) {
         // Recibir el comando del cliente
@@ -537,7 +475,6 @@ void handle_client(int client_socket) {
         }
         //--------------------------------------------------//
     }
-
     // Cerrar la conexión después de procesar todos los comandos
     close(client_socket);
 }
@@ -547,49 +484,38 @@ int main() {
     int client_socket;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
-
     // Lectura de la configuración
     int port = read_config();
-
     // Creación de memoria compartida para los subprocesos
     int shmid = shmget(SHM_KEY, sizeof(SharedData), IPC_CREAT | 0666);
     shared_data = (SharedData*)shmat(shmid, nullptr, 0);
     shared_data->user_count = 0;
-
     // Cargar los usuarios desde el archivo
     cargar_usuarios();
-
     // Creación de un semáforo para sincronización
     sem = sem_open("/user_semaphore", O_CREAT, 0644, 1);
-
     // Creación del socket del servidor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         cerr << "Error al crear el socket" << endl;
         return -1;
     }
-
     // Configuración de la dirección del servidor
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(port);
-
     // Enlazar el socket del servidor con la dirección
     if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         cerr << "Error al hacer bind" << endl;
         return -1;
     }
-
     // Escuchar conexiones entrantes
     if (listen(server_fd, MAX_CONNECTIONS) < 0) {
         cerr << "Error al escuchar por conexiones" << endl;
         return -1;
     }
-
     cout << "Servidor escuchando en el puerto " << port << endl;
-
     // Capturar la señal SIGINT (Ctrl+C) para cerrar el servidor
     signal(SIGINT, shutdown_server);
-
     // Ciclo principal para aceptar y manejar conexiones de clientes
     while (server_running) {
         // Aceptar la conexión de un cliente
@@ -598,13 +524,10 @@ int main() {
             cerr << "Error al aceptar la conexión" << endl;
             continue;
         }
-
         // Mostrar la IP del cliente
         cout << "Conexión aceptada desde IP: " << inet_ntoa(client_addr.sin_addr) << "Con Socket:" << client_socket << endl;
-
         // Crear un proceso hijo para manejar este cliente
         pid_t pid = fork();
-        
         if (pid == 0) {
             // Proceso hijo
             close(server_fd);               // El hijo ya no necesita escuchar nuevas conexiones
@@ -618,15 +541,12 @@ int main() {
             cerr << "Error al crear el proceso hijo" << endl;
         }
     }
-
     // Liberar los recursos al finalizar
     cout << "Cerrando servidor..." << endl;
     shmdt(shared_data);                     // Desasociar la memoria compartida
     shmctl(shmid, IPC_RMID, nullptr);       // Liberar la memoria compartida
     sem_close(sem);                         // Cerrar el semáforo
     sem_unlink("/user_semaphore");          // Desvincular el semáforo
-
     exit(0);
-
     return 0;
 }

@@ -17,7 +17,6 @@
 #include <sys/time.h>
 #include <limits>
 
-
 using namespace std;
 
 struct Usuario {
@@ -48,7 +47,6 @@ map<string, vector<MensajeChat>> chatsPorContacto;
 void agregarMensajeAlChat(const string& correoContacto, const string& mensaje, int tipo) {
     // Crear un nuevo mensaje de chat
     MensajeChat nuevoMensaje(mensaje, tipo);
-
     // Verificar si el contacto ya existe en el mapa
     if (chatsPorContacto.find(correoContacto) != chatsPorContacto.end()) {
         // Si existe, añadir el nuevo mensaje al vector de mensajes del contacto
@@ -58,40 +56,31 @@ void agregarMensajeAlChat(const string& correoContacto, const string& mensaje, i
         vector<MensajeChat> nuevoChat = { nuevoMensaje };
         chatsPorContacto[correoContacto] = nuevoChat;
     }
-
-    // Opcional: Mostrar el mensaje agregado
     cout << "Mensaje añadido al chat de " << correoContacto << ": " << mensaje << endl;
 }
-
 
 // Función para guardar los chats del usuario en un archivo txt único
 void guardarChatsEnArchivo() {
     // Nombre del archivo donde guardamos todos los chats
     string nombreArchivo = usuario_autenticado.correo + "-chats.txt";
-    
     // Abrir el archivo en modo de escritura
     ofstream archivo(nombreArchivo, ios::out);
     if (!archivo.is_open()) {
         cerr << "No se pudo abrir el archivo para guardar los chats." << endl;
         return;
     }
-
     // Recorrer todos los contactos y guardar sus mensajes
     for (const auto& chat : chatsPorContacto) {
         const string& correoContacto = chat.first; // Correo del contacto
         const vector<MensajeChat>& mensajes = chat.second; // Vector de mensajes
-
         // Escribir el nombre del contacto como título
         archivo << "Contacto: " << correoContacto << endl;
-
         // Guardar los mensajes en el archivo
         for (const auto& mensaje : mensajes) {
             archivo << mensaje.tipo << ";" << mensaje.mensaje << endl; // Guardar tipo y mensaje
         }
-
         archivo << "---- Fin de chat con " << correoContacto << " ----" << endl;
     }
-
     // Cerrar el archivo
     archivo.close();
     cout << "Todos los chats han sido guardados en: " << nombreArchivo << endl;
@@ -101,18 +90,15 @@ void guardarChatsEnArchivo() {
 void cargarChatsDesdeArchivo() {
     // Nombre del archivo donde guardamos todos los chats
     string nombreArchivo = usuario_autenticado.correo + "-chats.txt";
-
     // Abrir el archivo en modo de lectura
     ifstream archivo(nombreArchivo, ios::in);
     if (!archivo.is_open()) {
         cerr << "No se pudo abrir el archivo de chats." << endl;
         return;
     }
-
     string linea;
     string correoContacto;
     vector<MensajeChat> mensajes;
-
     // Leer cada línea del archivo
     while (getline(archivo, linea)) {
         // Verificar si la línea indica el inicio de un chat con un contacto
@@ -121,7 +107,6 @@ void cargarChatsDesdeArchivo() {
                 // Si ya teníamos mensajes previos, guardarlos en el mapa
                 chatsPorContacto[correoContacto] = mensajes;
             }
-
             // Extraer el correo del contacto
             correoContacto = linea.substr(10);  // "Contacto: " tiene 10 caracteres
             mensajes.clear();  // Limpiar los mensajes anteriores
@@ -136,35 +121,29 @@ void cargarChatsDesdeArchivo() {
             stringstream ss(linea);
             getline(ss, tipoStr, ';'); // Leer tipo (0 o 1)
             getline(ss, mensaje);     // Leer mensaje
-
             int tipo = stoi(tipoStr);  // Convertir tipo a int
             mensajes.push_back(MensajeChat(mensaje, tipo));  // Agregar el mensaje
         }
     }
-
     // Asegurarse de guardar los últimos mensajes leídos
     if (!correoContacto.empty()) {
         chatsPorContacto[correoContacto] = mensajes;
     }
-
     // Cerrar el archivo
     archivo.close();
     cout << "Chats cargados desde el archivo: " << nombreArchivo << endl;
 }
 
-//
+// Función para visualizar los chats en consola
 void imprimirChat(const string& correoContacto) {
     // Verificar si el contacto tiene mensajes en el mapa
     if (chatsPorContacto.find(correoContacto) == chatsPorContacto.end()) {
         cout << "No se ha encontrado un chat con el contacto: " << correoContacto << endl;
         return;
     }
-
     // Obtener los mensajes del contacto
     vector<MensajeChat> mensajes = chatsPorContacto[correoContacto];
-
     cout << "\nChat con " << correoContacto << ":\n";
-    
     // Recorrer y mostrar los mensajes
     for (const auto& mensaje : mensajes) {
         if (mensaje.tipo == 0) {
@@ -178,7 +157,6 @@ void imprimirChat(const string& correoContacto) {
 // Función para leer el archivo de configuración y obtener el puerto
 void read_config(string &server_ip, int &server_port) {
     ifstream config_file("config.txt");
-
     if (config_file.is_open()) {
         string line;
         while (getline(config_file, line)) {
@@ -207,7 +185,7 @@ void agregar_contacto(const Contacto &nuevo_contacto) {
     cout << "Contacto agregado correctamente." << endl;
 }
 
-// Función para mostrar la lista de contactos
+// Función para mostrar la lista de contactos en consola
 void mostrar_contactos() {
     cout << "\nLista de contactos:\n";
     if (lista_contactos.empty()) {
@@ -260,21 +238,17 @@ void agregar_contacto_func(int client_fd) {
 void guardarContactos() {
     // Crear nombre del archivo con el correo del usuario autenticado
     string nombreArchivo = usuario_autenticado.correo + "-contactos.txt";
-
     // Abrir archivo en modo de escritura
     ofstream archivo(nombreArchivo);
-
     if (!archivo.is_open()) {
         cerr << "Error al abrir el archivo para guardar los contactos." << endl;
         return;
     }
-
     for (const auto& contacto : lista_contactos) {
         archivo << contacto.nombre << "," 
                 << contacto.apellido << "," 
                 << contacto.correo << "\n";
     }
-
     archivo.close();
     cout << "Contactos guardados correctamente en " << nombreArchivo << endl;
 }
@@ -283,34 +257,28 @@ void guardarContactos() {
 void cargarContactos() {
     // Crear nombre del archivo con el correo del usuario autenticado
     string nombreArchivo = usuario_autenticado.correo + "-contactos.txt";
-
     // Abrir archivo en modo de lectura
     ifstream archivo(nombreArchivo);
-
     if (!archivo.is_open()) {
         cout << "No hay contactos guardados aún para este usuario." << endl;
         return;
     }
-
     lista_contactos.clear(); // Limpiar lista antes de cargar
-
     string linea;
     while (getline(archivo, linea)) {
         stringstream ss(linea);
         string nombre, apellido, correo;
-
         if (getline(ss, nombre, ',') && 
             getline(ss, apellido, ',') && 
             getline(ss, correo)) {
             lista_contactos.push_back({nombre, apellido, correo});
         }
     }
-
     archivo.close();
     cout << "Contactos cargados correctamente desde " << nombreArchivo << endl;
 }
 
-// Función para Desonectar al usuario
+// Función para desconectar al usuario del servidor y terminar el programa
 void disconnect(int client_fd){
     string comando = "DISCONNECT";
     send(client_fd, comando.c_str(), comando.length(), 0);
@@ -325,54 +293,18 @@ void disconnect(int client_fd){
     exit(0);
 }
 
-// Función para Recibir mensajes desde el servidor
-void recibirMensajes(int client_fd) {
-    char buffer[1024];
-    int bytes_recibidos = recv(client_fd, buffer, sizeof(buffer), 0);
-    
-    // Verificar si se recibió algún dato
-    if (bytes_recibidos <= 0) {
-        if (bytes_recibidos == 0) {
-            cout << "El servidor cerró la conexión." << endl;
-        } else {
-            cerr << "Error al recibir mensaje. Código de error: " << errno << endl;
-        }
-        exit(-1); // Termina la conexión si no se recibe respuesta
-    }
-
-    buffer[bytes_recibidos] = '\0'; // Asegura que la cadena esté bien terminada
-
-    // Separar el mensaje en correo y contenido
-    string mensaje_completo(buffer);
-    size_t primer_espacio = mensaje_completo.find(':');
-    
-    if (primer_espacio != string::npos) {
-        string correo_emisor = mensaje_completo.substr(0, primer_espacio); // Correo del emisor
-        string mensaje = mensaje_completo.substr(primer_espacio + 2); // Mensaje (se omite el espacio después del ':')
-        
-        // Imprimir el correo y el mensaje por separado
-        cout << "Mensaje de " << correo_emisor << ": " << mensaje << endl;
-    } else {
-        cout << "Formato del mensaje recibido incorrecto." << endl;
-    }
-}
-
 // Función para enviar mensajes al servidor
 void enviarMensaje(int client_fd, const string& correo_destino, const string& mensaje) {
     string comando = "MSG " + correo_destino + " " + mensaje;
-
     // Enviar el comando al servidor
     if (send(client_fd, comando.c_str(), comando.length(), 0) == -1) {
         cerr << "Error al enviar el mensaje." << endl;
         return;
     }
-
     cout << "Intentando enviar mensaje a " << correo_destino << endl;
-
     // Recibir respuesta del servidor
     char buffer[1024] = {0};
     int bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-
     if (bytes_received > 0) {
         buffer[bytes_received] = '\0';  // Asegurar que sea una cadena válida
         cout << "Respuesta del servidor: " << buffer << endl;
@@ -399,11 +331,9 @@ void checkMessages(int client_socket) {
         cerr << "Error al enviar el comando al servidor." << endl;
         return;
     }
-
     // Buffer para recibir la respuesta del servidor
     char buffer[1024] = {0};
     int bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-
     if (bytes_received <= 0) {
         if (bytes_received == 0) {
             cerr << "El servidor cerró la conexión." << endl;
@@ -412,32 +342,24 @@ void checkMessages(int client_socket) {
         }
         return;
     }
-
     // Convertir la respuesta a un string
     string respuesta(buffer, bytes_received);
-
     // Verificar si hay un mensaje nuevo
     if (respuesta.find("ERROR") != string::npos) {
         cerr << "Error al revisar mensajes: " << respuesta << endl;
     } else {
         // Si no hay error, imprimir la respuesta del servidor
         cout << "Respuesta del servidor: " << respuesta << endl;
-
-        // Procesar el mensaje recibido
-        // Asumimos que la respuesta está en el formato:
+        // Usando el formato:
         // "De: correoEmisor\nMensaje: contenidoMensaje"
-        
         // Extraer correoEmisor
         size_t posDe = respuesta.find("De: ");
         size_t posMensaje = respuesta.find("\nMensaje: ");
-        
         if (posDe != string::npos && posMensaje != string::npos) {
             string correoEmisor = respuesta.substr(posDe + 4, posMensaje - posDe - 4);
             string mensajeContenido = respuesta.substr(posMensaje + 9);  // El contenido después de "Mensaje: "
-
             // Mostrar el mensaje
             cout << "Nuevo mensaje de " << correoEmisor << ": " << mensajeContenido << endl;
-
             // Agregar el mensaje al chat del contacto
             agregarMensajeAlChat(correoEmisor, mensajeContenido, 1); // 1 indica que es un mensaje recibido del contacto
         } else {
@@ -446,7 +368,7 @@ void checkMessages(int client_socket) {
     }
 }
 
-// Interfaz post-ingreso (después de iniciar sesión)
+// Interfaz post-ingreso (después de iniciar sesión) en consola
 void interfazAutenticado(int client_fd) {
     cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
     int opcion;
@@ -521,7 +443,6 @@ void registrarse(string nombre, string apellido, string correo, string contrasen
             // Obtener los datos del usuario
             string comando_getuser = "GETUSER " + correo;
             send(client_fd, comando_getuser.c_str(), comando_getuser.length(), 0);
-
             // Recibir la respuesta del servidor
             bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
             if (bytes_received > 0) {
@@ -560,24 +481,20 @@ void iniciarSesion(string correo, string contrasena, int client_fd) {
     cin >> correo;
     cout << "Ingrese su contraseña: ";
     cin >> contrasena;
-    
     string comando = "LOGIN " + correo + " " + contrasena;
     // Enviar el comando al servidor
     send(client_fd, comando.c_str(), comando.length(), 0);
-
     // Recibir la respuesta del servidor
     char buffer[1024] = {0};
     int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
     if (bytes_received > 0) {
         string respuesta(buffer);
         cout << "Respuesta del servidor: " << respuesta << endl;
-        
         // Si el inicio de sesión fue exitoso
         if (respuesta.find("Login exitoso") != string::npos) {
             // Ahora obtenemos los datos del usuario autenticado
             string comando_getuser = "GETUSER " + correo;
             send(client_fd, comando_getuser.c_str(), comando_getuser.length(), 0);
-
             // Recibir la respuesta del servidor
             bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
             if (bytes_received > 0) {
@@ -589,13 +506,11 @@ void iniciarSesion(string correo, string contrasena, int client_fd) {
                     ss >> temp >> nombre;     // Ignorar "User"
                     ss >> temp >> apellido;   // Ignorar "Apellido"
                     ss >> temp >> correo;     // Ignorar "Correo"
-                    
                     // Guardar la información en la variable global usuario_autenticado
                     usuario_autenticado.nombre = nombre;
                     usuario_autenticado.apellido = apellido;
                     usuario_autenticado.correo = correo;
                     usuario_autenticado.contrasena = contrasena;
-
                     cout << "Datos de usuario guardados correctamente." << endl;
                     // Ahora que ya tenemos la información, podemos ir a la interfaz autenticada
                     interfazAutenticado(client_fd);
@@ -679,10 +594,8 @@ int startConnection(){
 
         cerr << "Error al recibir la respuesta del servidor" << endl;
     }
-
     // Menú para el cliente
     interfazInicial(client_fd);
-
     close(client_fd); 
     return 0;
 }
