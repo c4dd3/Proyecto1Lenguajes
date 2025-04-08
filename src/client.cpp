@@ -62,88 +62,96 @@ void agregarMensajeAlChat(const string& correoContacto, const string& mensaje, i
     // Opcional: Mostrar el mensaje agregado
     cout << "Mensaje añadido al chat de " << correoContacto << ": " << mensaje << endl;
 }
-// Ejemplo de añadir un mensaje
-//agregarMensajeAlChat("contacto@example.com", "Hola, ¿cómo estás?", 1);  // Mensaje recibido del contacto
-//agregarMensajeAlChat("contacto@example.com", "¡Todo bien! ¿Y tú?", 0);  // Mensaje enviado por el usuario
 
-// Función para guardar los chats del usuario en un archivo txt personal
+
+// Función para guardar los chats del usuario en un archivo txt único
 void guardarChatsEnArchivo() {
-    // Crear un archivo de texto para cada contacto y guardar los mensajes
+    // Nombre del archivo donde guardamos todos los chats
+    string nombreArchivo = usuario_autenticado.correo + "-chats.txt";
+    
+    // Abrir el archivo en modo de escritura
+    ofstream archivo(nombreArchivo, ios::out);
+    if (!archivo.is_open()) {
+        cerr << "No se pudo abrir el archivo para guardar los chats." << endl;
+        return;
+    }
+
+    // Recorrer todos los contactos y guardar sus mensajes
     for (const auto& chat : chatsPorContacto) {
         const string& correoContacto = chat.first; // Correo del contacto
         const vector<MensajeChat>& mensajes = chat.second; // Vector de mensajes
 
-        // Nombre del archivo para guardar los mensajes
-        string nombreArchivo = usuario_autenticado.correo + "-" + correoContacto + "-chat.txt";
-        
-        // Abrir el archivo en modo de escritura
-        ofstream archivo(nombreArchivo, ios::out);
-        if (!archivo.is_open()) {
-            cerr << "No se pudo abrir el archivo para guardar los mensajes de " << correoContacto << endl;
-            continue;
-        }
+        // Escribir el nombre del contacto como título
+        archivo << "Contacto: " << correoContacto << endl;
 
         // Guardar los mensajes en el archivo
         for (const auto& mensaje : mensajes) {
             archivo << mensaje.tipo << ";" << mensaje.mensaje << endl; // Guardar tipo y mensaje
         }
 
-        // Cerrar el archivo
-        archivo.close();
-        cout << "Mensajes de " << correoContacto << " guardados en: " << nombreArchivo << endl;
+        archivo << "---- Fin de chat con " << correoContacto << " ----" << endl;
     }
+
+    // Cerrar el archivo
+    archivo.close();
+    cout << "Todos los chats han sido guardados en: " << nombreArchivo << endl;
 }
 
-// Función para cargar los chats del usuario de un archivo txt personal
+// Función para cargar los chats del usuario desde un archivo txt único
 void cargarChatsDesdeArchivo() {
-    // Nombre del archivo donde guardamos los chats
-    string nombreArchivo = usuario_autenticado.correo + "-contactos.txt";
+    // Nombre del archivo donde guardamos todos los chats
+    string nombreArchivo = usuario_autenticado.correo + "-chats.txt";
 
     // Abrir el archivo en modo de lectura
     ifstream archivo(nombreArchivo, ios::in);
     if (!archivo.is_open()) {
-        cerr << "No se pudo abrir el archivo de contactos." << endl;
+        cerr << "No se pudo abrir el archivo de chats." << endl;
         return;
     }
 
     string linea;
+    string correoContacto;
+    vector<MensajeChat> mensajes;
+
+    // Leer cada línea del archivo
     while (getline(archivo, linea)) {
-        // Parsear cada línea para obtener el correo del contacto
-        stringstream ss(linea);
-        string correoContacto;
-        ss >> correoContacto;
+        // Verificar si la línea indica el inicio de un chat con un contacto
+        if (linea.find("Contacto: ") != string::npos) {
+            if (!correoContacto.empty()) {
+                // Si ya teníamos mensajes previos, guardarlos en el mapa
+                chatsPorContacto[correoContacto] = mensajes;
+            }
 
-        // Ahora cargamos los mensajes del contacto
-        string nombreArchivoChat = usuario_autenticado.correo + "-" + correoContacto + "-chat.txt";
-        ifstream archivoChat(nombreArchivoChat, ios::in);
-        if (!archivoChat.is_open()) {
-            cerr << "No se pudo abrir el archivo de chat para el contacto: " << correoContacto << endl;
-            continue;
+            // Extraer el correo del contacto
+            correoContacto = linea.substr(10);  // "Contacto: " tiene 10 caracteres
+            mensajes.clear();  // Limpiar los mensajes anteriores
         }
-
-        vector<MensajeChat> mensajes;
-
-        // Leer los mensajes del archivo del chat
-        while (getline(archivoChat, linea)) {
+        else if (linea.find("---- Fin de chat con") != string::npos) {
+            // Fin del chat con un contacto, guardar los mensajes
+            chatsPorContacto[correoContacto] = mensajes;
+        } 
+        else {
+            // Parsear el tipo y mensaje
             string tipoStr, mensaje;
-            stringstream ssChat(linea);
-            getline(ssChat, tipoStr, ';'); // Leer tipo (0 o 1)
-            getline(ssChat, mensaje);     // Leer mensaje
+            stringstream ss(linea);
+            getline(ss, tipoStr, ';'); // Leer tipo (0 o 1)
+            getline(ss, mensaje);     // Leer mensaje
 
-            int tipo = stoi(tipoStr);    // Convertir tipo a int
-            mensajes.push_back(MensajeChat(mensaje, tipo));
+            int tipo = stoi(tipoStr);  // Convertir tipo a int
+            mensajes.push_back(MensajeChat(mensaje, tipo));  // Agregar el mensaje
         }
-
-        // Almacenar los mensajes en el mapa
-        chatsPorContacto[correoContacto] = mensajes;
-
-        // Cerrar el archivo de chat
-        archivoChat.close();
     }
 
-    // Cerrar el archivo de contactos
+    // Asegurarse de guardar los últimos mensajes leídos
+    if (!correoContacto.empty()) {
+        chatsPorContacto[correoContacto] = mensajes;
+    }
+
+    // Cerrar el archivo
     archivo.close();
+    cout << "Chats cargados desde el archivo: " << nombreArchivo << endl;
 }
+
 
 //
 void imprimirChat(const string& correoContacto) {
