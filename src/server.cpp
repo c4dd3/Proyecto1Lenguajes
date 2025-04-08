@@ -31,14 +31,24 @@ struct Usuario {
 };
 
 struct Mensaje {
-    string correoEmisor;
-    string correoReceptor;
-    string contenido;
-    // Constructor para inicializar la estructura con strings
+    char correoEmisor[100];
+    char correoReceptor[100];
+    char contenido[512];
+
+    // Constructor manual (no puede usarse directamente en memoria compartida, pero útil en código fuera de ella)
+    Mensaje() {
+        correoEmisor[0] = '\0';
+        correoReceptor[0] = '\0';
+        contenido[0] = '\0';
+    }
+
     Mensaje(const string& emisor, const string& receptor, const string& msg) {
-        correoEmisor = emisor;
-        correoReceptor = receptor;
-        contenido = msg;
+        strncpy(correoEmisor, emisor.c_str(), sizeof(correoEmisor));
+        correoEmisor[sizeof(correoEmisor) - 1] = '\0';
+        strncpy(correoReceptor, receptor.c_str(), sizeof(correoReceptor));
+        correoReceptor[sizeof(correoReceptor) - 1] = '\0';
+        strncpy(contenido, msg.c_str(), sizeof(contenido));
+        contenido[sizeof(contenido) - 1] = '\0';
     }
 };
 
