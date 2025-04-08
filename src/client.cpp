@@ -225,33 +225,18 @@ void checkMessages(int client_socket) {
 // Interfaz post-ingreso (después de iniciar sesión)
 void interfazAutenticado(int client_fd) {
     cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
-
-    string entrada;
     int opcion;
-
     while (true) {
-        // Revisar mensajes cada cierto tiempo
-        checkMessages(client_fd);
-
         // Mostrar menú
         cout << "\nElija una opción: \n";
         cout << "1. Agregar Contacto\n";
         cout << "2. Mostrar Contactos\n";
         cout << "3. Enviar Mensaje\n";
         cout << "4. Desconectar\n";
+        cout << "5. Buscar Mensaje\n";
         cout << "Opción: ";
         cout.flush();
-
-        getline(cin, entrada);
-
-        // Intentar convertir la entrada a entero
-        try {
-            opcion = stoi(entrada);
-        } catch (...) {
-            cout << "Entrada no válida. Intente nuevamente." << endl;
-            continue;
-        }
-
+        cin >> opcion;
         if (opcion == 1) {
             agregar_contacto_func(client_fd);
         } else if (opcion == 2) {
@@ -266,11 +251,12 @@ void interfazAutenticado(int client_fd) {
         } else if (opcion == 4) {
             disconnect(client_fd);
             break;
+        } else if (opcion == 5) {
+            checkMessages(client_fd);
+            break;
         } else {
             cout << "Opción no válida. Intente nuevamente." << endl;
         }
-
-        usleep(5000000); // Esperar 1 segundo
     }
 }
 

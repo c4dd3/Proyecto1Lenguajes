@@ -34,14 +34,11 @@ struct Mensaje {
     string correoEmisor;
     string correoReceptor;
     string contenido;
-    Mensaje* siguiente;
-
     // Constructor para inicializar la estructura con strings
     Mensaje(const string& emisor, const string& receptor, const string& msg) {
         correoEmisor = emisor;
         correoReceptor = receptor;
         contenido = msg;
-        siguiente = nullptr; // Inicializamos el puntero siguiente como nullptr (nulo)
     }
 };
 
@@ -441,8 +438,6 @@ void revisarMensajes(int client_socket) {
     // Recorrer la lista de mensajes
     bool hay_mensajes = false;
     for (int i = 0; i < shared_data->mensaje_count; ++i) {
-        // Comprobar si el mensaje es para el usuario autenticado
-        cout << "Indice: " << i << " " << shared_data->mensajes[i].correoReceptor << " " << usuario_autenticado.correo << endl;
         if (shared_data->mensajes[i].correoReceptor == string(usuario_autenticado.correo)) {
             // Enviar el mensaje al cliente correspondiente
             string contenidoMensaje = shared_data->mensajes[i].contenido;
