@@ -115,6 +115,61 @@ void agregar_contacto_func(int client_fd) {
     }
 }
 
+// Función para guardar los contactos en un txt personal del usuario
+void guardarContactos() {
+    // Crear nombre del archivo con el correo del usuario autenticado
+    string nombreArchivo = usuario_autenticado.correo + "-contactos.txt";
+
+    // Abrir archivo en modo de escritura
+    ofstream archivo(nombreArchivo);
+
+    if (!archivo.is_open()) {
+        cerr << "Error al abrir el archivo para guardar los contactos." << endl;
+        return;
+    }
+
+    for (const auto& contacto : lista_contactos) {
+        archivo << contacto.nombre << "," 
+                << contacto.apellido << "," 
+                << contacto.correo << "\n";
+    }
+
+    archivo.close();
+    cout << "Contactos guardados correctamente en " << nombreArchivo << endl;
+}
+
+// Función para cargar los contactos del usuario del txt personalizado
+void cargarContactos() {
+    // Crear nombre del archivo con el correo del usuario autenticado
+    string nombreArchivo = usuario_autenticado.correo + "-contactos.txt";
+
+    // Abrir archivo en modo de lectura
+    ifstream archivo(nombreArchivo);
+
+    if (!archivo.is_open()) {
+        cout << "No hay contactos guardados aún para este usuario." << endl;
+        return;
+    }
+
+    lista_contactos.clear(); // Limpiar lista antes de cargar
+
+    string linea;
+    while (getline(archivo, linea)) {
+        stringstream ss(linea);
+        string nombre, apellido, correo;
+
+        if (getline(ss, nombre, ',') && 
+            getline(ss, apellido, ',') && 
+            getline(ss, correo)) {
+            lista_contactos.push_back({nombre, apellido, correo});
+        }
+    }
+
+    archivo.close();
+    cout << "Contactos cargados correctamente desde " << nombreArchivo << endl;
+}
+
+
 // Función para Desonectar al usuario
 void disconnect(int client_fd){
     string comando = "DISCONNECT";
@@ -227,7 +282,7 @@ void checkMessages(int client_socket) {
 void interfazAutenticado(int client_fd) {
     cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
     int opcion;
-
+    cargarContactos();
     while (true) {
         // Mostrar menú
         cout << "\nElija una opción: \n";
@@ -255,6 +310,7 @@ void interfazAutenticado(int client_fd) {
             enviarMensaje(client_fd, correo, mensaje);
         } else if (opcion == 4) {
             disconnect(client_fd);
+            guardarContactos();
             break;
         } else if (opcion == 5) {
             checkMessages(client_fd);
