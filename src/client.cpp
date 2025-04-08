@@ -253,7 +253,6 @@ void interfazAutenticado(int client_fd) {
             break;
         } else if (opcion == 5) {
             checkMessages(client_fd);
-            break;
         } else {
             cout << "Opción no válida. Intente nuevamente." << endl;
         }
