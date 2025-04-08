@@ -155,6 +155,59 @@ void iniciarSesion(string correo, string contrasena, int client_fd) {
         cerr << "Error al recibir la respuesta del servidor" << endl;
     }
 }
+
+class ChatWindow : public Gtk::ApplicationWindow {
+public:
+    ChatWindow(int client_fd) : client_fd(client_fd) {
+        set_title("SwiftTalk");
+        set_default_size(800, 600);
+        set_position(Gtk::WIN_POS_CENTER);
+
+        // Layout principal: horizontal
+        main_box.set_orientation(Gtk::ORIENTATION_HORIZONTAL);
+        add(main_box);
+
+        // Lista de contactos (columna izquierda)
+        contact_list.set_size_request(250);
+        contact_list.set_border_width(5);
+
+        // Contactos como Gtk::Labels dentro de Gtk::ListBox
+        listbox_contacts.append(*Gtk::make_managed<Gtk::Label>("Contacto 1"));
+        listbox_contacts.append(*Gtk::make_managed<Gtk::Label>("Contacto 2"));
+        listbox_contacts.append(*Gtk::make_managed<Gtk::Label>("Contacto 3"));
+
+        contact_list.pack_start(listbox_contacts);
+        main_box.pack_start(contact_list, Gtk::PACK_SHRINK);
+
+        // Área de chat (columna derecha)
+        chat_area.set_border_width(5);
+
+        chat_text_view.set_editable(false);
+        chat_text_view.set_wrap_mode(Gtk::WrapMode::WRAP_WORD);
+
+        chat_area.pack_start(chat_text_view);
+        chat_area.pack_start(chat_entry, Gtk::PACK_SHRINK);
+        chat_area.pack_start(send_button, Gtk::PACK_SHRINK);
+
+        send_button.set_label("Enviar");
+
+        main_box.pack_start(chat_area);
+
+        show_all_children();
+    }
+
+private:
+    int client_fd;
+    Gtk::Box main_box{Gtk::ORIENTATION_HORIZONTAL};
+    Gtk::Box contact_list{Gtk::ORIENTATION_VERTICAL};
+    Gtk::ListBox listbox_contacts;
+
+    Gtk::Box chat_area{Gtk::ORIENTATION_VERTICAL};
+    Gtk::TextView chat_text_view;
+    Gtk::Entry chat_entry;
+    Gtk::Button send_button;
+};
+
 // Ventana de Registro
 
 class RegisterWindow : public Gtk::Window {
@@ -297,16 +350,30 @@ class LoginWindow : public Gtk::Window {
         Gtk::Entry entry_user, entry_password;
         Gtk::Button btn_login, btn_register;
         int client_fd;  // Almacenar client_fd
+        ChatWindow* chat_window = nullptr; 
     
         // Función que maneja el inicio de sesión
         void on_login_clicked() {
             string user = entry_user.get_text();
             string password = entry_password.get_text();
-    
-            cout << "antes de iniciar sesion" << endl;
+
             iniciarSesion(user, password, client_fd);
 
+            if (!usuario_autenticado.correo.empty()) {
+                // Crear y mostrar la ventana de chat
+                chat_window = new ChatWindow(client_fd);
+                chat_window->set_application(get_application());
+                chat_window->present();
+
+                hide();  // Ocultamos la ventana de login, pero la app sigue viva gracias a chat_window
+            }
+            else {
+                Gtk::MessageDialog dialog(*this, "Login fallido", false, Gtk::MESSAGE_ERROR);
+                dialog.run();
+            }
         }
+
+
     
         // Función que maneja el registro de un nuevo usuario
         void on_register_clicked() {
@@ -357,7 +424,7 @@ int startConnection(int argc, char* argv[]) {
     }
 
     // Usar Gtk::Application
-    auto app = Gtk::Application::create(argc, argv, "com.example.login");
+    auto app = Gtk::Application::create(argc, argv, "com.swifttalk.login");
     LoginWindow loginWindow(client_fd);  // Pasa client_fd a la ventana de login
     return app->run(loginWindow);  // Corre la ventana dentro del bucle de eventos de Gtk::Application
 }
