@@ -442,7 +442,7 @@ void revisarMensajes(int client_socket) {
     bool hay_mensajes = false;
     for (int i = 0; i < shared_data->mensaje_count; ++i) {
         // Comprobar si el mensaje es para el usuario autenticado
-        if (strcmp(shared_data->mensajes[i].correoReceptor, usuario_autenticado.correo) == 0) {
+        if (shared_data->mensajes[i].correoReceptor == usuario_autenticado.correo) {
             // Enviar el mensaje al cliente correspondiente
             string contenidoMensaje = shared_data->mensajes[i].contenido;
             string correoEmisor = shared_data->mensajes[i].correoEmisor;
