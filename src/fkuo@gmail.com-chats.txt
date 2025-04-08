@@ -1,0 +1,5 @@
+Contacto: jimmy@gmail.com
+1; Hola
+1; Hola, esto es una Prueba
+1; Como estas?
+---- Fin de chat con jimmy@gmail.com ----

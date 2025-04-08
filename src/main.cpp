@@ -28,6 +28,15 @@ struct Contacto {
 };
 vector<Contacto> lista_contactos;
 
+struct MensajeChat {
+    string mensaje;  // Contenido del mensaje
+    int tipo;        // 0 para enviado por el usuario, 1 para recibido del contacto
+
+    // Constructor para inicializar el mensaje y el tipo
+    MensajeChat(const string& msg, int t) : mensaje(msg), tipo(t) {}
+};
+map<string, vector<MensajeChat>> chatsPorContacto;
+
 // Función para leer el archivo de configuración y obtener el puerto
 void read_config(string &server_ip, int &server_port) {
     ifstream config_file("config.txt");
@@ -190,6 +199,49 @@ void disconnect(int client_fd){
     exit(0);
 }
 
+void agregarMensajeAlChat(const string& correoContacto, const string& mensaje, int tipo) {
+    // Crear un nuevo mensaje de chat
+    MensajeChat nuevoMensaje(mensaje, tipo);
+    // Verificar si el contacto ya existe en el mapa
+    if (chatsPorContacto.find(correoContacto) != chatsPorContacto.end()) {
+        // Si existe, añadir el nuevo mensaje al vector de mensajes del contacto
+        chatsPorContacto[correoContacto].push_back(nuevoMensaje);
+    } else {
+        // Si no existe, crear una nueva entrada en el mapa con ese correo
+        vector<MensajeChat> nuevoChat = { nuevoMensaje };
+        chatsPorContacto[correoContacto] = nuevoChat;
+    }
+    cout << "Mensaje añadido al chat de " << correoContacto << ": " << mensaje << endl;
+}
+
+void enviarMensaje(int client_fd, const string& correo_destino, const string& mensaje) {
+    string comando = "MSG " + correo_destino + " " + mensaje;
+    // Enviar el comando al servidor
+    if (send(client_fd, comando.c_str(), comando.length(), 0) == -1) {
+        cerr << "Error al enviar el mensaje." << endl;
+        return;
+    }
+    cout << "Intentando enviar mensaje a " << correo_destino << endl;
+    // Recibir respuesta del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+    if (bytes_received > 0) {
+        buffer[bytes_received] = '\0';  // Asegurar que sea una cadena válida
+        cout << "Respuesta del servidor: " << buffer << endl;
+        // Verificar si la respuesta del servidor es un éxito
+        if (string(buffer) == "Mensaje enviado correctamente.\n") {
+            cout << "El mensaje fue enviado correctamente al contacto." << endl;
+            // Si el mensaje fue enviado correctamente, agregarlo al chat
+            agregarMensajeAlChat(correo_destino, mensaje, 0);  // 0 indica que es un mensaje enviado por el usuario
+        } else {
+            cout << "Hubo un error al enviar el mensaje: " << buffer << endl;
+        }
+    } else if (bytes_received == 0) {
+        cout << "El servidor cerró la conexión." << endl;
+    } else {
+        cerr << "Error al recibir respuesta del servidor. Código de error: " << errno << endl;
+    }
+}
 class ChatWindow : public Gtk::ApplicationWindow {
     public:
         ChatWindow(int client_fd) : client_fd(client_fd) {
@@ -228,11 +280,11 @@ class ChatWindow : public Gtk::ApplicationWindow {
     
             btn_add_contact.set_label("Añadir contacto");
             btn_logout.set_label("Cerrar sesión");
-
+    
             // Acciones de los botones
             btn_add_contact.signal_clicked().connect(sigc::mem_fun(*this, &ChatWindow::mostrarFormularioAgregarContacto));
             btn_logout.signal_clicked().connect(sigc::mem_fun(*this, &ChatWindow::cerrarSesion));
-            
+    
             control_buttons_box.pack_start(btn_add_contact, Gtk::PACK_SHRINK);
             control_buttons_box.pack_start(btn_logout, Gtk::PACK_SHRINK);
     
@@ -246,12 +298,20 @@ class ChatWindow : public Gtk::ApplicationWindow {
     
             send_button.set_label("Enviar");
     
+            // Conectar el botón Enviar a la función de envío
+            send_button.signal_clicked().connect(sigc::mem_fun(*this, &ChatWindow::enviarMensaje));
+    
+            // Conectar la selección de un contacto en la lista
+            listbox_contacts.signal_row_selected().connect(sigc::mem_fun(*this, &ChatWindow::onContactoSeleccionado));
+    
             main_box.pack_start(chat_area);
+
             show_all_children();
         }
     
     private:
         int client_fd;
+        std::string correo_contacto_seleccionado; // Almacenar el correo del contacto seleccionado
     
         Gtk::Box main_box{Gtk::ORIENTATION_HORIZONTAL};
         Gtk::Box contact_list{Gtk::ORIENTATION_VERTICAL};
@@ -288,36 +348,36 @@ class ChatWindow : public Gtk::ApplicationWindow {
             archivo.close();
             std::cout << "Contactos cargados correctamente desde " << nombreArchivo << std::endl;
         }
-
+    
         void mostrarFormularioAgregarContacto() {
             Gtk::Dialog dialogo("Añadir nuevo contacto", *this);
             dialogo.set_modal(true);
             dialogo.set_transient_for(*this);
-        
+    
             Gtk::Box* contenido = dialogo.get_content_area();
             Gtk::Entry entry_correo;
             entry_correo.set_placeholder_text("Correo del nuevo contacto");
-        
+    
             contenido->pack_start(entry_correo, Gtk::PACK_SHRINK);
             dialogo.add_button("Cancelar", Gtk::RESPONSE_CANCEL);
             dialogo.add_button("Guardar", Gtk::RESPONSE_OK);
-        
+    
             dialogo.show_all_children();
             int resultado = dialogo.run();
-        
+    
             if (resultado == Gtk::RESPONSE_OK) {
                 std::string correo = entry_correo.get_text();
-        
+    
                 // Enviar comando al servidor para obtener datos del contacto
                 std::string comando = "GETUSER " + correo;
                 send(client_fd, comando.c_str(), comando.length(), 0);
-        
+    
                 char buffer[1024] = {0};
                 int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-        
+    
                 if (bytes_received > 0) {
                     std::string respuesta(buffer);
-        
+    
                     if (respuesta.find("ERROR") != std::string::npos) {
                         Gtk::MessageDialog dialog_error(*this, "Usuario no encontrado.", false, Gtk::MESSAGE_ERROR);
                         dialog_error.run();
@@ -327,9 +387,9 @@ class ChatWindow : public Gtk::ApplicationWindow {
                         ss >> temp >> nombre;
                         ss >> temp >> apellido;
                         ss >> temp >> correo_response;
-        
+    
                         Contacto nuevo_contacto = {nombre, apellido, correo_response};
-        
+    
                         // Validar si ya existe
                         for (const auto &c : lista_contactos) {
                             if (c.correo == nuevo_contacto.correo) {
@@ -338,10 +398,10 @@ class ChatWindow : public Gtk::ApplicationWindow {
                                 return;
                             }
                         }
-        
+    
                         // Agregar a lista en memoria
                         lista_contactos.push_back(nuevo_contacto);
-        
+    
                         // Agregar a archivo
                         std::string archivoNombre = usuario_autenticado.correo + "-contactos.txt";
                         std::ofstream archivo(archivoNombre, std::ios::app);
@@ -349,7 +409,7 @@ class ChatWindow : public Gtk::ApplicationWindow {
                             archivo << nombre << "," << apellido << "," << correo_response << std::endl;
                             archivo.close();
                         }
-        
+    
                         // Agregar a la interfaz gráfica
                         std::string etiqueta = nombre + " " + apellido;
                         listbox_contacts.append(*Gtk::make_managed<Gtk::Label>(etiqueta));
@@ -361,14 +421,56 @@ class ChatWindow : public Gtk::ApplicationWindow {
                 }
             }
         }
-
+    
         void cerrarSesion() {
             guardarContactos();         // Guardar los contactos del usuario autenticado
             disconnect(client_fd);      // Enviar DISCONNECT al servidor y cerrar socket
         }
-        
+    
+        void onContactoSeleccionado(Gtk::ListBoxRow* row) {
+            if (row) {
+                // Obtén la etiqueta del contacto (nombre completo) de la fila seleccionada
+                auto label = dynamic_cast<Gtk::Label*>(row->get_child());
+                if (label) {
+                    // Buscar el contacto correspondiente usando el nombre completo
+                    std::string nombre_completo = label->get_text();
+                    for (const auto& contacto : lista_contactos) {
+                        if (contacto.nombre + " " + contacto.apellido == nombre_completo) {
+                            correo_contacto_seleccionado = contacto.correo;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    
+        void enviarMensaje() {
+            std::string mensaje = chat_entry.get_text();
+            if (!mensaje.empty() && !correo_contacto_seleccionado.empty()) {
+                // Llamar a la función que envía el mensaje
+                ::enviarMensaje(client_fd, correo_contacto_seleccionado, mensaje);
+    
+                // Limpiar el campo de entrada de texto
+                chat_entry.set_text("");
+    
+                // Actualizar la ventana de chat (agregar el mensaje a la interfaz)
+                agregarMensajeAlChat(correo_contacto_seleccionado, mensaje, 0);  // 0 indica mensaje enviado por el usuario
+            } else {
+                Gtk::MessageDialog dialog(*this, "Por favor, ingrese un mensaje y seleccione un contacto.");
+                dialog.run();
+            }
+        }
+    
+        void agregarMensajeAlChat(const std::string& correo, const std::string& mensaje, int tipo) {
+            // Tipo 0 para mensajes enviados por el usuario
+            // Tipo 1 para mensajes recibidos del contacto
+            std::string mensaje_con_id = (tipo == 0 ? "Yo: " : correo) + mensaje;
+            Gtk::TextBuffer::iterator iter = chat_text_view.get_buffer()->get_iter_at_offset(-1);
+            chat_text_view.get_buffer()->insert(iter, mensaje_con_id + "\n");
+        }
         
     };
+    
 
 // Ventana de Registro
 
