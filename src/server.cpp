@@ -31,27 +31,19 @@ struct Usuario {
 };
 
 struct Mensaje {
-    char correoEmisor[50];
-    char correoReceptor[50];
-    char contenido[256];
+    string correoEmisor;
+    string correoReceptor;
+    string contenido;
     Mensaje* siguiente;
 
-    // Constructor para inicializar la estructura
-    Mensaje(const char* emisor, const char* receptor, const char* msg) {
-        // Usamos strncpy para evitar desbordamientos de buffer
-        strncpy(correoEmisor, emisor, sizeof(correoEmisor) - 1);
-        correoEmisor[sizeof(correoEmisor) - 1] = '\0';      // Asegurarnos de que la cadena se termine en '\0'
-        
-        strncpy(correoReceptor, receptor, sizeof(correoReceptor) - 1);
-        correoReceptor[sizeof(correoReceptor) - 1] = '\0';  // Asegurarnos de que la cadena se termine en '\0'
-
-        strncpy(contenido, msg, sizeof(contenido) - 1);
-        contenido[sizeof(contenido) - 1] = '\0';            // Asegurarnos de que la cadena se termine en '\0'
-
-        siguiente = nullptr;                                // Inicializamos el puntero siguiente como nullptr (nulo)
+    // Constructor para inicializar la estructura con strings
+    Mensaje(const string& emisor, const string& receptor, const string& msg) {
+        correoEmisor = emisor;
+        correoReceptor = receptor;
+        contenido = msg;
+        siguiente = nullptr; // Inicializamos el puntero siguiente como nullptr (nulo)
     }
 };
-
 
 struct SharedData {
     Usuario lista_usuarios[100];
