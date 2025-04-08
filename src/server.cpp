@@ -349,7 +349,7 @@ void get_user_info(int client_socket, const string &comando) {
 }
 
 // Función para agregar el mensaje en la lista de mensajes de la memoria compartida
-void addMSG(const char* correoReceptor, const char* contenido) {
+void addMSG(const string& correoReceptor, const string& contenido) {
     // Crear un nuevo mensaje con los datos proporcionados
     Mensaje nuevoMensaje(usuario_autenticado.correo, correoReceptor, contenido);
 
