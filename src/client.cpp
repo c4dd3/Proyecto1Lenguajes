@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <cstring>
 #include <fstream>
+#include <map>
 #include <vector>
 #include <sys/shm.h>
 #include <semaphore.h>
@@ -33,6 +34,141 @@ struct Contacto {
     string correo;
 };
 vector<Contacto> lista_contactos;
+
+struct MensajeChat {
+    string mensaje;  // Contenido del mensaje
+    int tipo;        // 0 para enviado por el usuario, 1 para recibido del contacto
+
+    // Constructor para inicializar el mensaje y el tipo
+    MensajeChat(const string& msg, int t) : mensaje(msg), tipo(t) {}
+};
+map<string, vector<MensajeChat>> chatsPorContacto;
+
+// Función para añadir un mensaje al chat según contacto
+void agregarMensajeAlChat(const string& correoContacto, const string& mensaje, int tipo) {
+    // Crear un nuevo mensaje de chat
+    MensajeChat nuevoMensaje(mensaje, tipo);
+
+    // Verificar si el contacto ya existe en el mapa
+    if (chatsPorContacto.find(correoContacto) != chatsPorContacto.end()) {
+        // Si existe, añadir el nuevo mensaje al vector de mensajes del contacto
+        chatsPorContacto[correoContacto].push_back(nuevoMensaje);
+    } else {
+        // Si no existe, crear una nueva entrada en el mapa con ese correo
+        vector<MensajeChat> nuevoChat = { nuevoMensaje };
+        chatsPorContacto[correoContacto] = nuevoChat;
+    }
+
+    // Opcional: Mostrar el mensaje agregado
+    cout << "Mensaje añadido al chat de " << correoContacto << ": " << mensaje << endl;
+}
+// Ejemplo de añadir un mensaje
+//agregarMensajeAlChat("contacto@example.com", "Hola, ¿cómo estás?", 1);  // Mensaje recibido del contacto
+//agregarMensajeAlChat("contacto@example.com", "¡Todo bien! ¿Y tú?", 0);  // Mensaje enviado por el usuario
+
+// Función para guardar los chats del usuario en un archivo txt personal
+void guardarChatsEnArchivo() {
+    // Crear un archivo de texto para cada contacto y guardar los mensajes
+    for (const auto& chat : chatsPorContacto) {
+        const string& correoContacto = chat.first; // Correo del contacto
+        const vector<MensajeChat>& mensajes = chat.second; // Vector de mensajes
+
+        // Nombre del archivo para guardar los mensajes
+        string nombreArchivo = usuario_autenticado.correo + "-" + correoContacto + "-chat.txt";
+        
+        // Abrir el archivo en modo de escritura
+        ofstream archivo(nombreArchivo, ios::out);
+        if (!archivo.is_open()) {
+            cerr << "No se pudo abrir el archivo para guardar los mensajes de " << correoContacto << endl;
+            continue;
+        }
+
+        // Guardar los mensajes en el archivo
+        for (const auto& mensaje : mensajes) {
+            archivo << mensaje.tipo << ";" << mensaje.mensaje << endl; // Guardar tipo y mensaje
+        }
+
+        // Cerrar el archivo
+        archivo.close();
+        cout << "Mensajes de " << correoContacto << " guardados en: " << nombreArchivo << endl;
+    }
+}
+
+// Función para cargar los chats del usuario de un archivo txt personal
+void cargarChatsDesdeArchivo() {
+    // Nombre del archivo donde guardamos los chats
+    string nombreArchivo = usuario_autenticado.correo + "-contactos.txt";
+
+    // Abrir el archivo en modo de lectura
+    ifstream archivo(nombreArchivo, ios::in);
+    if (!archivo.is_open()) {
+        cerr << "No se pudo abrir el archivo de contactos." << endl;
+        return;
+    }
+
+    string linea;
+    while (getline(archivo, linea)) {
+        // Parsear cada línea para obtener el correo del contacto
+        stringstream ss(linea);
+        string correoContacto;
+        ss >> correoContacto;
+
+        // Ahora cargamos los mensajes del contacto
+        string nombreArchivoChat = usuario_autenticado.correo + "-" + correoContacto + "-chat.txt";
+        ifstream archivoChat(nombreArchivoChat, ios::in);
+        if (!archivoChat.is_open()) {
+            cerr << "No se pudo abrir el archivo de chat para el contacto: " << correoContacto << endl;
+            continue;
+        }
+
+        vector<MensajeChat> mensajes;
+
+        // Leer los mensajes del archivo del chat
+        while (getline(archivoChat, linea)) {
+            string tipoStr, mensaje;
+            stringstream ssChat(linea);
+            getline(ssChat, tipoStr, ';'); // Leer tipo (0 o 1)
+            getline(ssChat, mensaje);     // Leer mensaje
+
+            int tipo = stoi(tipoStr);    // Convertir tipo a int
+            mensajes.push_back(MensajeChat(mensaje, tipo));
+        }
+
+        // Almacenar los mensajes en el mapa
+        chatsPorContacto[correoContacto] = mensajes;
+
+        // Cerrar el archivo de chat
+        archivoChat.close();
+    }
+
+    // Cerrar el archivo de contactos
+    archivo.close();
+}
+
+//
+void imprimirChat(const string& correoContacto) {
+    // Verificar si el contacto tiene mensajes en el mapa
+    if (chatsPorContacto.find(correoContacto) == chatsPorContacto.end()) {
+        cout << "No se ha encontrado un chat con el contacto: " << correoContacto << endl;
+        return;
+    }
+
+    // Obtener los mensajes del contacto
+    vector<MensajeChat> mensajes = chatsPorContacto[correoContacto];
+
+    cout << "\nChat con " << correoContacto << ":\n";
+    
+    // Recorrer y mostrar los mensajes
+    for (const auto& mensaje : mensajes) {
+        if (mensaje.tipo == 0) {
+            cout << "Tú: " << mensaje.mensaje << endl; // Mensaje enviado por el usuario
+        } else {
+            cout << correoContacto << ": " << mensaje.mensaje << endl; // Mensaje recibido del contacto
+        }
+    }
+}
+
+
 
 // Función para leer el archivo de configuración y obtener el puerto
 void read_config(string &server_ip, int &server_port) {
@@ -236,6 +372,14 @@ void enviarMensaje(int client_fd, const string& correo_destino, const string& me
     if (bytes_received > 0) {
         buffer[bytes_received] = '\0';  // Asegurar que sea una cadena válida
         cout << "Respuesta del servidor: " << buffer << endl;
+        // Verificar si la respuesta del servidor es un éxito
+        if (string(buffer) == "Mensaje enviado correctamente.\n") {
+            cout << "El mensaje fue enviado correctamente al contacto." << endl;
+            // Si el mensaje fue enviado correctamente, agregarlo al chat
+            agregarMensajeAlChat(correo_destino, mensaje, 0);  // 0 indica que es un mensaje enviado por el usuario
+        } else {
+            cout << "Hubo un error al enviar el mensaje: " << buffer << endl;
+        }
     } else if (bytes_received == 0) {
         cout << "El servidor cerró la conexión." << endl;
     } else {
@@ -274,15 +418,37 @@ void checkMessages(int client_socket) {
     } else {
         // Si no hay error, imprimir la respuesta del servidor
         cout << "Respuesta del servidor: " << respuesta << endl;
+
+        // Procesar el mensaje recibido
+        // Asumimos que la respuesta está en el formato:
+        // "De: correoEmisor\nMensaje: contenidoMensaje"
+        
+        // Extraer correoEmisor
+        size_t posDe = respuesta.find("De: ");
+        size_t posMensaje = respuesta.find("\nMensaje: ");
+        
+        if (posDe != string::npos && posMensaje != string::npos) {
+            string correoEmisor = respuesta.substr(posDe + 4, posMensaje - posDe - 4);
+            string mensajeContenido = respuesta.substr(posMensaje + 9);  // El contenido después de "Mensaje: "
+
+            // Mostrar el mensaje
+            cout << "Nuevo mensaje de " << correoEmisor << ": " << mensajeContenido << endl;
+
+            // Agregar el mensaje al chat del contacto
+            agregarMensajeAlChat(correoEmisor, mensajeContenido, 1); // 1 indica que es un mensaje recibido del contacto
+        } else {
+            cerr << "Formato de mensaje recibido incorrecto: " << respuesta << endl;
+        }
     }
 }
 
-// Interfaz post-ingreso (después de iniciar sesión)
 // Interfaz post-ingreso (después de iniciar sesión)
 void interfazAutenticado(int client_fd) {
     cout << "\nHola, " << usuario_autenticado.nombre << "!" << endl;
     int opcion;
     cargarContactos();
+    cargarChatsDesdeArchivo();
+    
     while (true) {
         // Mostrar menú
         cout << "\nElija una opción: \n";
@@ -291,6 +457,7 @@ void interfazAutenticado(int client_fd) {
         cout << "3. Enviar Mensaje\n";
         cout << "4. Desconectar\n";
         cout << "5. Buscar Mensaje\n";
+        cout << "6. Ver Chat con Contacto\n"; // Nueva opción
         cout << "Opción: ";
         cout.flush();
 
@@ -310,16 +477,21 @@ void interfazAutenticado(int client_fd) {
             enviarMensaje(client_fd, correo, mensaje);
         } else if (opcion == 4) {
             guardarContactos();
+            guardarChatsEnArchivo();
             disconnect(client_fd);
             break;
         } else if (opcion == 5) {
             checkMessages(client_fd);
+        } else if (opcion == 6) {
+            string correoContacto;
+            cout << "Ingrese el correo del contacto para ver el chat: ";
+            getline(cin, correoContacto);
+            imprimirChat(correoContacto); // Llamada a la función para imprimir el chat
         } else {
             cout << "Opción no válida. Intente nuevamente." << endl;
         }
     }
 }
-
 
 // Función para registrar nuevo usuario
 void registrarse(string nombre, string apellido, string correo, string contrasena, int client_fd){
