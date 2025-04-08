@@ -152,6 +152,44 @@ void iniciarSesion(string correo, string contrasena, int client_fd) {
     }
 }
 
+// Función para guardar los contactos en un txt personal del usuario
+void guardarContactos() {
+    // Crear nombre del archivo con el correo del usuario autenticado
+    string nombreArchivo = usuario_autenticado.correo + "-contactos.txt";
+
+    // Abrir archivo en modo de escritura
+    ofstream archivo(nombreArchivo);
+
+    if (!archivo.is_open()) {
+        cerr << "Error al abrir el archivo para guardar los contactos." << endl;
+        return;
+    }
+
+    for (const auto& contacto : lista_contactos) {
+        archivo << contacto.nombre << "," 
+                << contacto.apellido << "," 
+                << contacto.correo << "\n";
+    }
+
+    archivo.close();
+    cout << "Contactos guardados correctamente en " << nombreArchivo << endl;
+}
+
+// Función para Desonectar al usuario
+void disconnect(int client_fd){
+    string comando = "DISCONNECT";
+    send(client_fd, comando.c_str(), comando.length(), 0);
+    // Recibir confirmación del servidor
+    char buffer[1024] = {0};
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_received > 0) {
+        cout << "Respuesta del servidor: " << buffer << endl;
+    }
+    cout << "Cerrando conexión..." << endl;
+    close(client_fd);
+    exit(0);
+}
+
 class ChatWindow : public Gtk::ApplicationWindow {
     public:
         ChatWindow(int client_fd) : client_fd(client_fd) {
@@ -190,7 +228,11 @@ class ChatWindow : public Gtk::ApplicationWindow {
     
             btn_add_contact.set_label("Añadir contacto");
             btn_logout.set_label("Cerrar sesión");
-    
+
+            // Acciones de los botones
+            btn_add_contact.signal_clicked().connect(sigc::mem_fun(*this, &ChatWindow::mostrarFormularioAgregarContacto));
+            btn_logout.signal_clicked().connect(sigc::mem_fun(*this, &ChatWindow::cerrarSesion));
+            
             control_buttons_box.pack_start(btn_add_contact, Gtk::PACK_SHRINK);
             control_buttons_box.pack_start(btn_logout, Gtk::PACK_SHRINK);
     
@@ -246,6 +288,86 @@ class ChatWindow : public Gtk::ApplicationWindow {
             archivo.close();
             std::cout << "Contactos cargados correctamente desde " << nombreArchivo << std::endl;
         }
+
+        void mostrarFormularioAgregarContacto() {
+            Gtk::Dialog dialogo("Añadir nuevo contacto", *this);
+            dialogo.set_modal(true);
+            dialogo.set_transient_for(*this);
+        
+            Gtk::Box* contenido = dialogo.get_content_area();
+            Gtk::Entry entry_correo;
+            entry_correo.set_placeholder_text("Correo del nuevo contacto");
+        
+            contenido->pack_start(entry_correo, Gtk::PACK_SHRINK);
+            dialogo.add_button("Cancelar", Gtk::RESPONSE_CANCEL);
+            dialogo.add_button("Guardar", Gtk::RESPONSE_OK);
+        
+            dialogo.show_all_children();
+            int resultado = dialogo.run();
+        
+            if (resultado == Gtk::RESPONSE_OK) {
+                std::string correo = entry_correo.get_text();
+        
+                // Enviar comando al servidor para obtener datos del contacto
+                std::string comando = "GETUSER " + correo;
+                send(client_fd, comando.c_str(), comando.length(), 0);
+        
+                char buffer[1024] = {0};
+                int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+        
+                if (bytes_received > 0) {
+                    std::string respuesta(buffer);
+        
+                    if (respuesta.find("ERROR") != std::string::npos) {
+                        Gtk::MessageDialog dialog_error(*this, "Usuario no encontrado.", false, Gtk::MESSAGE_ERROR);
+                        dialog_error.run();
+                    } else {
+                        std::istringstream ss(respuesta);
+                        std::string temp, nombre, apellido, correo_response;
+                        ss >> temp >> nombre;
+                        ss >> temp >> apellido;
+                        ss >> temp >> correo_response;
+        
+                        Contacto nuevo_contacto = {nombre, apellido, correo_response};
+        
+                        // Validar si ya existe
+                        for (const auto &c : lista_contactos) {
+                            if (c.correo == nuevo_contacto.correo) {
+                                Gtk::MessageDialog ya_existe(*this, "El contacto ya está en la lista.", false, Gtk::MESSAGE_WARNING);
+                                ya_existe.run();
+                                return;
+                            }
+                        }
+        
+                        // Agregar a lista en memoria
+                        lista_contactos.push_back(nuevo_contacto);
+        
+                        // Agregar a archivo
+                        std::string archivoNombre = usuario_autenticado.correo + "-contactos.txt";
+                        std::ofstream archivo(archivoNombre, std::ios::app);
+                        if (archivo.is_open()) {
+                            archivo << nombre << "," << apellido << "," << correo_response << std::endl;
+                            archivo.close();
+                        }
+        
+                        // Agregar a la interfaz gráfica
+                        std::string etiqueta = nombre + " " + apellido;
+                        listbox_contacts.append(*Gtk::make_managed<Gtk::Label>(etiqueta));
+                        listbox_contacts.show_all_children();
+                    }
+                } else {
+                    Gtk::MessageDialog dialog_error(*this, "Error al recibir respuesta del servidor.", false, Gtk::MESSAGE_ERROR);
+                    dialog_error.run();
+                }
+            }
+        }
+
+        void cerrarSesion() {
+            guardarContactos();         // Guardar los contactos del usuario autenticado
+            disconnect(client_fd);      // Enviar DISCONNECT al servidor y cerrar socket
+        }
+        
+        
     };
 
 // Ventana de Registro

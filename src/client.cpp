@@ -152,7 +152,6 @@ void cargarChatsDesdeArchivo() {
     cout << "Chats cargados desde el archivo: " << nombreArchivo << endl;
 }
 
-
 //
 void imprimirChat(const string& correoContacto) {
     // Verificar si el contacto tiene mensajes en el mapa
@@ -175,8 +174,6 @@ void imprimirChat(const string& correoContacto) {
         }
     }
 }
-
-
 
 // Función para leer el archivo de configuración y obtener el puerto
 void read_config(string &server_ip, int &server_port) {
@@ -222,7 +219,7 @@ void mostrar_contactos() {
     }
 }
 
-// Función para agregar un contacto desde la interfaz
+// Función para agregar un contacto desde la interfaz 1
 void agregar_contacto_func(int client_fd) {
     string correo;
     cout << "Ingrese el correo del usuario a agregar: ";
@@ -312,7 +309,6 @@ void cargarContactos() {
     archivo.close();
     cout << "Contactos cargados correctamente desde " << nombreArchivo << endl;
 }
-
 
 // Función para Desonectar al usuario
 void disconnect(int client_fd){
