@@ -1,0 +1,4 @@
+Contacto: jimmy@gmail.com
+0;hola jimmy
+1; Pero ahora
+---- Fin de chat con jimmy@gmail.com ----

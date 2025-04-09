@@ -1,0 +1,13 @@
+Contacto: jimmy@gmail.com
+1;Desde Jimmy
+0;Ya no se
+1;otra vez
+0;Espero que esto ya funcione de forma definitiva
+1;probando
+0;probando display
+0;Hola
+0;Hola2
+1;Hola3
+0;prueba
+1; prueba2
+---- Fin de chat con jimmy@gmail.com ----

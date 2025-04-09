@@ -1,0 +1,9 @@
+Contacto: fkuo@gmail.com
+0;Desde Jimmy
+1;Ya no se
+0;otra vez
+1;Hola2
+0;Hola3
+1; prueba
+0;prueba2
+---- Fin de chat con fkuo@gmail.com ----

@@ -258,7 +258,7 @@ void enviarMensaje(int client_fd, const string& correo_destino, const string& me
         if (string(buffer) == "Mensaje enviado correctamente.\n") {
             cout << "El mensaje fue enviado correctamente al contacto." << endl;
             // Si el mensaje fue enviado correctamente, agregarlo al chat
-            agregarMensajeAlChat(correo_destino, mensaje, 0);  // 0 indica que es un mensaje enviado por el usuario
+            // agregarMensajeAlChat(correo_destino, mensaje, 0);  // 0 indica que es un mensaje enviado por el usuario
         } else {
             cout << "Hubo un error al enviar el mensaje: " << buffer << endl;
         }
