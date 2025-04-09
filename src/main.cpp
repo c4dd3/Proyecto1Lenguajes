@@ -57,6 +57,32 @@ void read_config(string &server_ip, int &server_port) {
     }
 }
 
+void guardarChatsEnArchivo() {
+    // Nombre del archivo donde guardamos todos los chats
+    string nombreArchivo = usuario_autenticado.correo + "-chats.txt";
+    // Abrir el archivo en modo de escritura
+    ofstream archivo(nombreArchivo, ios::out);
+    if (!archivo.is_open()) {
+        cerr << "No se pudo abrir el archivo para guardar los chats." << endl;
+        return;
+    }
+    // Recorrer todos los contactos y guardar sus mensajes
+    for (const auto& chat : chatsPorContacto) {
+        const string& correoContacto = chat.first; // Correo del contacto
+        const vector<MensajeChat>& mensajes = chat.second; // Vector de mensajes
+        // Escribir el nombre del contacto como título
+        archivo << "Contacto: " << correoContacto << endl;
+        // Guardar los mensajes en el archivo
+        for (const auto& mensaje : mensajes) {
+            archivo << mensaje.tipo << ";" << mensaje.mensaje << endl; // Guardar tipo y mensaje
+        }
+        archivo << "---- Fin de chat con " << correoContacto << " ----" << endl;
+    }
+    // Cerrar el archivo
+    archivo.close();
+    cout << "Todos los chats han sido guardados en: " << nombreArchivo << endl;
+}
+
 // Función para registrar nuevo usuario
 void registrarse(string nombre, string apellido, string correo, string contrasena, int client_fd){
 
@@ -242,6 +268,7 @@ void enviarMensaje(int client_fd, const string& correo_destino, const string& me
         cerr << "Error al recibir respuesta del servidor. Código de error: " << errno << endl;
     }
 }
+
 class ChatWindow : public Gtk::ApplicationWindow {
     public:
         ChatWindow(int client_fd) : client_fd(client_fd) {
@@ -365,8 +392,7 @@ class ChatWindow : public Gtk::ApplicationWindow {
         
             std::string linea;
             std::string contacto_actual;
-            std::string mensaje;
-            bool es_mensaje_recibido = false;
+            std::vector<MensajeChat> mensajes;
             bool dentro_del_chat = false;
         
             // Limpiar el área de chat antes de cargar nuevos mensajes
@@ -374,28 +400,46 @@ class ChatWindow : public Gtk::ApplicationWindow {
         
             while (std::getline(archivo, linea)) {
                 if (linea.find("Contacto: ") == 0) {
+                    if (!contacto_actual.empty() && contacto_actual == correo_contacto) {
+                        // Guardar el chat anterior si corresponde
+                        chatsPorContacto[contacto_actual] = mensajes;
+                    }
                     contacto_actual = linea.substr(10);
+                    mensajes.clear();
                     dentro_del_chat = (contacto_actual == correo_contacto);
                     continue;
                 }
         
                 if (linea.find("---- Fin de chat con ") == 0) {
+                    if (dentro_del_chat) {
+                        chatsPorContacto[contacto_actual] = mensajes;
+                    }
                     dentro_del_chat = false;
                     continue;
                 }
         
                 if (dentro_del_chat) {
-                    size_t pos_separador = linea.find(";");
-                    if (pos_separador != std::string::npos) {
-                        es_mensaje_recibido = (linea[0] == '1');
-                        mensaje = linea.substr(pos_separador + 2);
-                        agregarMensajeAlChat(contacto_actual, mensaje, es_mensaje_recibido ? 1 : 0);
+                    size_t pos_separador = linea.find(';');
+                    if (pos_separador != std::string::npos && linea.size() > pos_separador + 1) {
+                        int tipo = (linea[0] == '1') ? 1 : 0;
+                        std::string mensaje = linea.substr(pos_separador + 1);
+                        if (!mensaje.empty() && mensaje[0] == ' ') {
+                            mensaje = mensaje.substr(1);  // quitar espacio extra
+                        }
+                        mensajes.emplace_back(mensaje, tipo);              // guardar en el mapa
+                        agregarMensajeAlChat(contacto_actual, mensaje, tipo);  // mostrar en pantalla
                     }
                 }
             }
         
+            // Asegurarse de guardar los últimos mensajes si era el contacto actual
+            if (dentro_del_chat) {
+                chatsPorContacto[contacto_actual] = mensajes;
+            }
+        
             archivo.close();
         }
+        
         
     
         void mostrarFormularioAgregarContacto() {
@@ -471,15 +515,16 @@ class ChatWindow : public Gtk::ApplicationWindow {
             }
         }
     
-    void cerrarSesion() {
-        Gtk::MessageDialog confirmacion(*this, "¿Estás seguro de que quieres cerrar sesión?", false, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_OK_CANCEL);
-        int respuesta = confirmacion.run();
+        void cerrarSesion() {
+            Gtk::MessageDialog confirmacion(*this, "¿Estás seguro de que quieres cerrar sesión?", false, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_OK_CANCEL);
+            int respuesta = confirmacion.run();
 
-        if (respuesta == Gtk::RESPONSE_OK) {
-            guardarContactos();         // Guardar los contactos del usuario autenticado
-            disconnect(client_fd);      // Enviar DISCONNECT al servidor y cerrar socket
+            if (respuesta == Gtk::RESPONSE_OK) {
+                guardarChatsEnArchivo();    // Guardar los chats del usuario en un txt
+                guardarContactos();         // Guardar los contactos del usuario autenticado
+                disconnect(client_fd);      // Enviar DISCONNECT al servidor y cerrar socket
+            }
         }
-    }
 
         void onContactoSeleccionado(Gtk::ListBoxRow* row) {
             if (row) {
@@ -515,13 +560,22 @@ class ChatWindow : public Gtk::ApplicationWindow {
             }
         }
     
-        void agregarMensajeAlChat(const std::string& correo, const std::string& mensaje, int tipo) {
-            // Tipo 0 para mensajes enviados por el usuario
-            // Tipo 1 para mensajes recibidos del contacto
-            std::string mensaje_con_id = (tipo == 0 ? "Yo: " : correo + ": ") + mensaje;
-            Gtk::TextBuffer::iterator iter = chat_text_view.get_buffer()->get_iter_at_offset(-1);
-            chat_text_view.get_buffer()->insert(iter, mensaje_con_id + "\n");
+        void agregarMensajeAlChat(const std::string& correoContacto, const std::string& mensaje, int tipo) {
+            // 1. Guardar en el mapa
+            MensajeChat nuevoMensaje(mensaje, tipo);
+            if (chatsPorContacto.find(correoContacto) != chatsPorContacto.end()) {
+                chatsPorContacto[correoContacto].push_back(nuevoMensaje);
+            } else {
+                chatsPorContacto[correoContacto] = { nuevoMensaje };
+            }
+            std::cout << "Mensaje añadido al chat de " << correoContacto << ": " << mensaje << std::endl;
+        
+            // 2. Mostrar en el TextView
+            std::string mensaje_con_id = (tipo == 0 ? "Yo: " : correoContacto + ": ") + mensaje;
+            Glib::RefPtr<Gtk::TextBuffer> buffer = chat_text_view.get_buffer();
+            buffer->insert(buffer->end(), mensaje_con_id + "\n");
         }
+        
 
         bool checkMessages() {
             // Bloquear el mutex mientras revisamos los mensajes
@@ -569,6 +623,8 @@ class ChatWindow : public Gtk::ApplicationWindow {
 
         // Destructor
         ~ChatWindow() {
+            cerrarSesion();
+            guardarChatsEnArchivo(); 
             guardarContactos();  // Guardar contactos al cerrar la ventana
             disconnect(client_fd);  // Desconectar del servidor
         }
@@ -793,7 +849,7 @@ int startConnection(int argc, char* argv[]) {
     }
 
     // Usar Gtk::Application
-    auto app = Gtk::Application::create(argc, argv, "com.swifttalk.login");
+    auto app = Gtk::Application::create(argc, argv);
     LoginWindow loginWindow(client_fd);  // Pasa client_fd a la ventana de login
     return app->run(loginWindow);  // Corre la ventana dentro del bucle de eventos de Gtk::Application
 }

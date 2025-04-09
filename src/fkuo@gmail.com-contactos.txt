@@ -1,2 +1,0 @@
-Jimmy,Feng,jimmy@gmail.com
-Pepe,Grillo,grillo@gmail.com
