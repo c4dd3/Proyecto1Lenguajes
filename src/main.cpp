@@ -491,6 +491,7 @@ class ChatWindow : public Gtk::ApplicationWindow {
                     for (const auto& contacto : lista_contactos) {
                         if (contacto.nombre + " " + contacto.apellido == nombre_completo) {
                             correo_contacto_seleccionado = contacto.correo;
+                            cargarChats(correo_contacto_seleccionado);
                             break;
                         }
                     }
