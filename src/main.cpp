@@ -306,6 +306,9 @@ class ChatWindow : public Gtk::ApplicationWindow {
     
             main_box.pack_start(chat_area);
 
+            // Revisar mensajes cada segundo
+            Glib::signal_timeout().connect(sigc::mem_fun(*this, &ChatWindow::checkMessages), 1000);
+
             show_all_children();
         }
     
@@ -325,6 +328,8 @@ class ChatWindow : public Gtk::ApplicationWindow {
         Gtk::Box control_buttons_box;
         Gtk::Button btn_add_contact;
         Gtk::Button btn_logout;
+
+        std::mutex mtx; // Mutex para proteger el acceso a los datos compartidos
     
         void cargarContactos() {
             std::string nombreArchivo = usuario_autenticado.correo + "-contactos.txt";
@@ -347,6 +352,52 @@ class ChatWindow : public Gtk::ApplicationWindow {
     
             archivo.close();
             std::cout << "Contactos cargados correctamente desde " << nombreArchivo << std::endl;
+        }
+
+        void cargarChats(const std::string& correo_usuario) {
+            std::string nombre_archivo = correo_usuario + "-chats.txt";
+            std::ifstream archivo(nombre_archivo);
+
+            if (!archivo.is_open()) {
+                std::cerr << "No se pudo abrir el archivo de chats: " << nombre_archivo << std::endl;
+                return;
+            }
+
+            std::string linea;
+            std::string correo_contacto;
+            std::string mensaje;
+            bool es_mensaje_recibido = false;
+
+            // Limpiar el área de chat antes de cargar nuevos mensajes
+            chat_text_view.get_buffer()->set_text("");
+
+            // Leer cada línea del archivo
+            while (std::getline(archivo, linea)) {
+                // Si la línea contiene el contacto, guardamos el correo del contacto
+                if (linea.find("Contacto: ") == 0) {
+                    correo_contacto = linea.substr(10);  // Obtener el correo del contacto
+                    std::cout << "Cargando chat con: " << correo_contacto << std::endl;
+                    continue;  // Continuar con la siguiente línea
+                }
+
+                // Si encontramos una línea de fin de chat, la procesamos
+                if (linea.find("---- Fin de chat con ") == 0) {
+                    std::cout << "Fin de chat con: " << correo_contacto << std::endl;
+                    continue;  // Continuar con la siguiente línea
+                }
+
+                // Si la línea contiene un mensaje, procesamos el mensaje
+                size_t pos_separador = linea.find(";");
+                if (pos_separador != std::string::npos) {
+                    es_mensaje_recibido = (linea[0] == '1');  // 1 indica mensaje recibido
+                    mensaje = linea.substr(pos_separador + 2);  // El mensaje está después del "; "
+
+                    // Mostrar el mensaje en el chat
+                    agregarMensajeAlChat(correo_contacto, mensaje, es_mensaje_recibido ? 1 : 0);  // 1 para mensaje recibido, 0 para mensaje enviado
+                }
+            }
+
+            archivo.close();
         }
     
         void mostrarFormularioAgregarContacto() {
@@ -422,17 +473,20 @@ class ChatWindow : public Gtk::ApplicationWindow {
             }
         }
     
-        void cerrarSesion() {
+    void cerrarSesion() {
+        Gtk::MessageDialog confirmacion(*this, "¿Estás seguro de que quieres cerrar sesión?", false, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_OK_CANCEL);
+        int respuesta = confirmacion.run();
+
+        if (respuesta == Gtk::RESPONSE_OK) {
             guardarContactos();         // Guardar los contactos del usuario autenticado
             disconnect(client_fd);      // Enviar DISCONNECT al servidor y cerrar socket
         }
-    
+    }
+
         void onContactoSeleccionado(Gtk::ListBoxRow* row) {
             if (row) {
-                // Obtén la etiqueta del contacto (nombre completo) de la fila seleccionada
                 auto label = dynamic_cast<Gtk::Label*>(row->get_child());
                 if (label) {
-                    // Buscar el contacto correspondiente usando el nombre completo
                     std::string nombre_completo = label->get_text();
                     for (const auto& contacto : lista_contactos) {
                         if (contacto.nombre + " " + contacto.apellido == nombre_completo) {
@@ -468,6 +522,57 @@ class ChatWindow : public Gtk::ApplicationWindow {
             Gtk::TextBuffer::iterator iter = chat_text_view.get_buffer()->get_iter_at_offset(-1);
             chat_text_view.get_buffer()->insert(iter, mensaje_con_id + "\n");
         }
+
+        bool checkMessages() {
+            // Bloquear el mutex mientras revisamos los mensajes
+            std::lock_guard<std::mutex> lock(mtx);
+
+            // Enviar el comando "CHECKMSG" al servidor
+            std::string comando = "CHECKMSG";
+            if (send(client_fd, comando.c_str(), comando.length(), 0) == -1) {
+                std::cerr << "Error al enviar el comando al servidor." << std::endl;
+                return true;  // Continuar escuchando en el siguiente ciclo
+            }
+
+            // Recibir respuesta del servidor
+            char buffer[1024] = {0};
+            int bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+            if (bytes_received <= 0) {
+                if (bytes_received == 0) {
+                    std::cerr << "El servidor cerró la conexión." << std::endl;
+                } else {
+                    std::cerr << "Error al recibir la respuesta del servidor. Código de error: " << errno << std::endl;
+                }
+                return true;  // Continuar escuchando en el siguiente ciclo
+            }
+
+            std::string respuesta(buffer, bytes_received);
+            if (respuesta.find("ERROR") != std::string::npos) {
+                std::cerr << "Error al revisar mensajes: " << respuesta << std::endl;
+            } else {
+                size_t posDe = respuesta.find("De: ");
+                size_t posMensaje = respuesta.find("\nMensaje: ");
+                if (posDe != std::string::npos && posMensaje != std::string::npos) {
+                    std::string correoEmisor = respuesta.substr(posDe + 4, posMensaje - posDe - 4);
+                    std::string mensajeContenido = respuesta.substr(posMensaje + 9);
+                    std::cout << "Nuevo mensaje de " << correoEmisor << ": " << mensajeContenido << std::endl;
+
+                    // Si el mensaje fue recibido correctamente, agregarlo al chat
+                    agregarMensajeAlChat(correoEmisor, mensajeContenido, 1);  // 1 indica que es un mensaje recibido del contacto
+                } else {
+                    std::cerr << "Formato de mensaje recibido incorrecto: " << respuesta << std::endl;
+                }
+            }
+
+            return true;  // Continuar escuchando en el siguiente ciclo
+        }
+
+        // Destructor
+        ~ChatWindow() {
+            guardarContactos();  // Guardar contactos al cerrar la ventana
+            disconnect(client_fd);  // Desconectar del servidor
+        }
+
         
     };
     
