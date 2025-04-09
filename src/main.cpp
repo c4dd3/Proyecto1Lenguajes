@@ -354,51 +354,49 @@ class ChatWindow : public Gtk::ApplicationWindow {
             std::cout << "Contactos cargados correctamente desde " << nombreArchivo << std::endl;
         }
 
-        void cargarChats(const std::string& correo_usuario) {
+        void cargarChats(const std::string& correo_usuario, const std::string& correo_contacto) {
             std::string nombre_archivo = correo_usuario + "-chats.txt";
             std::ifstream archivo(nombre_archivo);
-
+        
             if (!archivo.is_open()) {
                 std::cerr << "No se pudo abrir el archivo de chats: " << nombre_archivo << std::endl;
                 return;
             }
-
+        
             std::string linea;
-            std::string correo_contacto;
+            std::string contacto_actual;
             std::string mensaje;
             bool es_mensaje_recibido = false;
-
+            bool dentro_del_chat = false;
+        
             // Limpiar el área de chat antes de cargar nuevos mensajes
             chat_text_view.get_buffer()->set_text("");
-
-            // Leer cada línea del archivo
+        
             while (std::getline(archivo, linea)) {
-                // Si la línea contiene el contacto, guardamos el correo del contacto
                 if (linea.find("Contacto: ") == 0) {
-                    correo_contacto = linea.substr(10);  // Obtener el correo del contacto
-                    std::cout << "Cargando chat con: " << correo_contacto << std::endl;
-                    continue;  // Continuar con la siguiente línea
+                    contacto_actual = linea.substr(10);
+                    dentro_del_chat = (contacto_actual == correo_contacto);
+                    continue;
                 }
-
-                // Si encontramos una línea de fin de chat, la procesamos
+        
                 if (linea.find("---- Fin de chat con ") == 0) {
-                    std::cout << "Fin de chat con: " << correo_contacto << std::endl;
-                    continue;  // Continuar con la siguiente línea
+                    dentro_del_chat = false;
+                    continue;
                 }
-
-                // Si la línea contiene un mensaje, procesamos el mensaje
-                size_t pos_separador = linea.find(";");
-                if (pos_separador != std::string::npos) {
-                    es_mensaje_recibido = (linea[0] == '1');  // 1 indica mensaje recibido
-                    mensaje = linea.substr(pos_separador + 2);  // El mensaje está después del "; "
-
-                    // Mostrar el mensaje en el chat
-                    agregarMensajeAlChat(correo_contacto, mensaje, es_mensaje_recibido ? 1 : 0);  // 1 para mensaje recibido, 0 para mensaje enviado
+        
+                if (dentro_del_chat) {
+                    size_t pos_separador = linea.find(";");
+                    if (pos_separador != std::string::npos) {
+                        es_mensaje_recibido = (linea[0] == '1');
+                        mensaje = linea.substr(pos_separador + 2);
+                        agregarMensajeAlChat(contacto_actual, mensaje, es_mensaje_recibido ? 1 : 0);
+                    }
                 }
             }
-
+        
             archivo.close();
         }
+        
     
         void mostrarFormularioAgregarContacto() {
             Gtk::Dialog dialogo("Añadir nuevo contacto", *this);
@@ -492,7 +490,7 @@ class ChatWindow : public Gtk::ApplicationWindow {
                         if (contacto.nombre + " " + contacto.apellido == nombre_completo) {
                             correo_contacto_seleccionado = contacto.correo;
                             chat_text_view.get_buffer()->set_text(""); // limpiar chat
-                            cargarChats(usuario_autenticado.correo); // cargar chats del usuario autenticado
+                            cargarChats(usuario_autenticado.correo, correo_contacto_seleccionado); // cargar chats del usuario autenticado
                             break;
                         }
                     }
@@ -520,7 +518,7 @@ class ChatWindow : public Gtk::ApplicationWindow {
         void agregarMensajeAlChat(const std::string& correo, const std::string& mensaje, int tipo) {
             // Tipo 0 para mensajes enviados por el usuario
             // Tipo 1 para mensajes recibidos del contacto
-            std::string mensaje_con_id = (tipo == 0 ? "Yo: " : correo) + mensaje;
+            std::string mensaje_con_id = (tipo == 0 ? "Yo: " : correo + ": ") + mensaje;
             Gtk::TextBuffer::iterator iter = chat_text_view.get_buffer()->get_iter_at_offset(-1);
             chat_text_view.get_buffer()->insert(iter, mensaje_con_id + "\n");
         }
