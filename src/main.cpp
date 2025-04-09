@@ -492,7 +492,7 @@ class ChatWindow : public Gtk::ApplicationWindow {
                         if (contacto.nombre + " " + contacto.apellido == nombre_completo) {
                             correo_contacto_seleccionado = contacto.correo;
                             chat_text_view.get_buffer()->set_text(""); // limpiar chat
-                            cargarChats(correo_contacto_seleccionado);
+                            cargarChats(usuario_autenticado.correo); // cargar chats del usuario autenticado
                             break;
                         }
                     }
